@@ -2,7 +2,7 @@
 C++11 implementation of 010 Editor's template language
 
 ## Status
-BTVM is in early state, lexing and parsing works on simple scripts (BMP and WAV format), date and time data types still needs to be created and more testing is required.
+BTVM is in early state, lexing and parsing works on simple scripts (BMP and WAV format), DATETIME's related data types aren't implemented yet and more testing is required.
 A detailed wiki page about BTVM's status will be available soon
 
 ## Requirements
