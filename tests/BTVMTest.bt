@@ -1,0 +1,336 @@
+// --------------------------------------
+//           HELPER FUNCTIONS
+// --------------------------------------
+
+enum UntypedEnum        { ZERO, ONE, TWO, THREE, TEN = 10, ELEVEN };
+enum <ushort> TypedEnum { ZERO, ONE, TWO, THREE, TEN = 10, ELEVEN };
+
+int sum(int a, int b) { return a + b; }
+int pow(int val) { return val * val; }
+
+void by_value(int val) { val++; }
+void by_reference(int& val) { val++; }
+
+int return_function(int a) { return (a >= 100 ? a * 100 : -a); }
+
+// --------------------------------------
+//             TEST CASES
+// --------------------------------------
+void test_basic_sizeof()
+{
+    Printf("8-Bit signed integer sizes...");
+    __btvm_test__((sizeof(char) == 1) && (sizeof(byte) == 1) && (sizeof(CHAR) == 1) && (sizeof(BYTE) == 1));
+
+    Printf("8-Bit unsigned integer sizes...");
+    __btvm_test__((sizeof(uchar) == 1) && (sizeof(ubyte) == 1) && (sizeof(UCHAR) == 1) && (sizeof(UBYTE) == 1));
+
+    Printf("16-Bit signed integer sizes...");
+    __btvm_test__((sizeof(short) == 2) && (sizeof(int16) == 2) && (sizeof(SHORT) == 2) && (sizeof(INT16) == 2));
+
+    Printf("16-Bit unsigned integer sizes...");
+    __btvm_test__((sizeof(ushort) == 2) && (sizeof(uint16) == 2) && (sizeof(USHORT) == 2) && (sizeof(UINT16) == 2) && sizeof(WORD) = 2);
+
+    Printf("32-Bit signed integer sizes...");
+    __btvm_test__((sizeof(int) == 4) && (sizeof(int32) == 4) && (sizeof(long) == 4) && (sizeof(INT) == 4) && (sizeof(INT32) == 4) && (sizeof(LONG) == 4));
+
+    Printf("32-Bit unsigned integer sizes...");
+    __btvm_test__((sizeof(uint) == 4) && (sizeof(uint32) == 4) && (sizeof(ulong) == 4) && (sizeof(UINT) == 4) && (sizeof(UINT32) == 4) && (sizeof(ULONG) == 4) && (sizeof(DWORD) == 4));
+
+    Printf("64-Bit signed integer sizes...");
+    __btvm_test__((sizeof(int64) == 8) && (sizeof(quad) == 8) && (sizeof(QUAD) == 8) && (sizeof(INT64) == 8) && (sizeof(__int64) == 8));
+    
+    Printf("64-Bit unsigned integer sizes...");
+    __btvm_test__((sizeof(uint64) == 8) && (sizeof(uquad) == 8) && (sizeof(UQUAD) == 8) && (sizeof(UINT64) == 8) && (sizeof(QWORD) == 8) && (sizeof(__uint64) == 8));
+
+    Printf("16-Bit floating point sizes...");
+    __btvm_test__((sizeof(hfloat) == 2) && (sizeof(HFLOAT) == 2));
+
+    Printf("32-Bit floating point sizes...");
+    __btvm_test__((sizeof(float) == 4) && (sizeof(FLOAT) == 4));
+
+    Printf("64-Bit floating point sizes...");
+    __btvm_test__((sizeof(double) == 8) && (sizeof(DOUBLE) == 8));
+}
+
+void test_multivars()
+{
+    Printf("Multiple variables...");
+
+    local int f = 10, g = 15, h = 20;
+    __btvm_test__((f == 10) && (g == 15) && (h == 20));
+}
+
+void test_array()
+{
+    Printf("Array types...");
+
+    local int a[3];
+    a[0] = 123;
+    a[1] = 456;
+    a[2] = 789;
+
+    __btvm_test__((a[0] == 123) && (a[1] == 456) && (a[2] == 789));
+
+    Printf("Array math...");
+    a[0] += 666;
+    a[2] -= 666;
+
+    __btvm_test__((a[2] == 123) && (a[1] == 456) && (a[0] == 789));
+}
+
+void test_untyped_enum()
+{
+    Printf("Untyped enum values...");
+
+    local UntypedEnum utenum;
+
+    __btvm_test__((utenum.ZERO   == 0)  &&
+                  (utenum.ONE    == 1)  &&
+                  (utenum.TWO    == 2)  &&
+                  (utenum.THREE  == 3)  &&
+                  (utenum.TEN    == 10) &&
+                  (utenum.ELEVEN == 11));
+
+    Printf("Untyped enum size [type]...");
+    __btvm_test__(sizeof(UntypedEnum) == 4);
+
+    Printf("Untyped enum size [variable]...");
+    __btvm_test__(sizeof(utenum) == 4);
+}
+
+void test_typed_enum()
+{
+    Printf("Typed enum values...");
+
+    local TypedEnum tenum;
+
+    __btvm_test__((tenum.ZERO   == 0)  &&
+                  (tenum.ONE    == 1)  &&
+                  (tenum.TWO    == 2)  &&
+                  (tenum.THREE  == 3)  &&
+                  (tenum.TEN    == 10) &&
+                  (tenum.ELEVEN == 11));
+
+    Printf("Typed enum size [type]...");
+    __btvm_test__(sizeof(TypedEnum) == 2);
+
+    Printf("Typed enum size [variable]...");
+    __btvm_test__(sizeof(tenum) == 2);
+}
+
+void test_math_expressions()
+{
+    Printf("Add expression...");
+    __btvm_test__((95 + 5) == 100);
+
+    Printf("Sub expression...");
+    __btvm_test__((95 - 5) == 90);
+
+    Printf("Mul expression...");
+    __btvm_test__((25 * 5) == 125);
+
+    Printf("Div expression...");
+    __btvm_test__((125 / 5) == 25);
+
+    Printf("Mod expression...");
+    __btvm_test__((25 % 7) == 4);
+
+    Printf("Composite expression...");
+    __btvm_test__(((100 * 10) - (250 * 2)) == 500);
+
+    Printf("~ operator...");
+    __btvm_test__((~0xAAAAAAAA) == 0x55555555);
+
+    Printf("<< operator...");
+    __btvm_test__((0x00000001 << 8) == 0x100);
+
+    Printf(">> operator...");
+    __btvm_test__((0x00000100 >> 8) == 0x1);
+
+    local int a = 255;
+
+    Printf("Prefix ++ operator...");
+    __btvm_test__(++a == 256);
+
+    Printf("Post-prefix ++ operator...");
+    __btvm_test__(a == 256);
+
+    Printf("Postfix ++ operator...");
+    __btvm_test__(a++ == 256);
+
+    Printf("Post-postfix ++ operator...");
+    __btvm_test__(a == 257);
+}
+
+void test_loop()
+{
+    local int res = 0;
+
+    Printf("For loop...");
+
+    local int i;
+
+    for(i = 0; i < 10; i++)
+        res++;
+
+    __btvm_test__(res == 10);
+    res = 0;
+
+    Printf("Counter reset...");
+    __btvm_test__(!res);
+
+    Printf("Do-While loop...");
+
+    do
+        res++;
+    while(res < 10);
+
+    __btvm_test__(res == 10);
+    res = 0;
+
+    Printf("Counter reset...");
+    __btvm_test__(!res);
+
+    Printf("While loop...");
+
+    while(res < 10)
+        res++;
+
+    __btvm_test__(res == 10);
+    res = 0;
+
+    Printf("Counter reset...");
+    __btvm_test__(!res);
+}
+
+void test_conditional()
+{
+    local bool itrue = true, ifalse = false;
+
+    Printf("Ternary operator [true]...");
+    itrue ? __btvm_test__(true) : __btvm_test__(false);
+
+    Printf("Ternary operator [false]...");
+    ifalse ? __btvm_test__(false) : __btvm_test__(true);
+
+    Printf("If-else statement [true]...");
+
+    if(itrue)
+        __btvm_test__(true);
+    else
+        __btvm_test__(false);
+
+    Printf("If-else statement [false]...");
+
+    if(!ifalse)
+        __btvm_test__(true);
+    else
+        __btvm_test__(false);
+}
+
+void test_switch()
+{
+    local int i = 10;
+
+    Printf("Switch statement [standard]...");
+
+    switch(i)
+    {
+        case 10:
+            __btvm_test__(true);
+            break;
+
+        case 9:
+        case 11:
+        default:
+            __btvm_test__(false);
+            break;
+    }
+
+    Printf("Switch statement [fall-through]...");
+
+    switch(i)
+    {
+        case 10:
+            i++;
+
+        case 11:
+            i--;
+            __btvm_test__(i == 10);
+            break;
+
+        case 9:
+        default:
+            __btvm_test__(false);
+            break;
+    }
+
+    Printf("Switch statement [default-case]...");
+
+    i = 50;
+
+    switch(i)
+    {
+        case 9:
+        case 10:
+        case 11:
+            __btvm_test__(false);
+            break;
+
+        default:
+            __btvm_test__(true);
+            break;
+    }
+}
+
+void test_conditional_return()
+{
+    local int i = 150;
+
+    Printf("Conditional Return statement [case 1]...");
+    __btvm_test__(return_function(i) == (i * 100));
+
+    i = 80;
+
+    Printf("Conditional Return statement [case 2]...");
+    __btvm_test__(return_function(i) == -i);
+}
+
+void test_function_call()
+{
+    Printf("Sum call...");
+    __btvm_test__(sum(50, 30) == 80);
+
+    Printf("Pow call...");
+    __btvm_test__(pow(10) == 100);
+}
+
+void test_by_reference()
+{
+    local int val = 10;
+
+    Printf("By value parameter...");
+    by_value(val);
+    __btvm_test__(val == 10);
+
+    Printf("By reference parameter...");
+    by_reference(val);
+    __btvm_test__(val == 11);
+}
+
+Printf("*** *** Starting tests *** ***\n");
+
+test_basic_sizeof();
+test_multivars();
+test_array();
+test_untyped_enum();
+test_typed_enum();
+test_math_expressions();
+test_loop();
+test_conditional();
+test_conditional_return();
+test_switch();
+test_function_call();
+test_by_reference();
+
+Printf("*** *** Ending tests *** ***\n");
