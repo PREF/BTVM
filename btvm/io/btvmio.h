@@ -14,8 +14,8 @@ class BTVMIO
             ~NoSeek() { _btvmio->seek(_oldoffset); }
 
             private:
-                uint64_t _oldoffset;
                 BTVMIO* _btvmio;
+                uint64_t _oldoffset;
         };
 
     public:
