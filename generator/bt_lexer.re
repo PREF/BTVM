@@ -109,24 +109,29 @@ list<BTLexer::Token> BTLexer::lex()
             "<<"  { TOKENIZE(BTT_LSL) }
             ">>"  { TOKENIZE(BTT_LSR) }
 
-            "void"                                                                   { TOKENIZE(BTT_VOID)    }
-            "bool"                                                                   { TOKENIZE(BTT_BOOL)    }
-            "string"																 { TOKENIZE(BTT_STRING)  }
-            "wstring"																 { TOKENIZE(BTT_WSTRING) }
-            "wchar_t"																 { TOKENIZE(BTT_WCHAR)   }
-            "char"   | "CHAR"                                                        { TOKENIZE(BTT_CHAR)    }
-            "byte"   | "BYTE"                                                        { TOKENIZE(BTT_BYTE)    }
-            "uchar"  | "UCHAR"                                                       { TOKENIZE(BTT_UCHAR)   }
-            "ubyte"  | "UBYTE"                                                       { TOKENIZE(BTT_UBYTE)   }
-            "short"  | "int16"  | "SHORT"  | "INT16"                                 { TOKENIZE(BTT_SHORT)   }
-            "ushort" | "uint16" | "USHORT" | "UINT16" | "WORD"                       { TOKENIZE(BTT_USHORT)  }
-            "int"    | "int32"  | "long"   | "INT"    | "INT32"  | "LONG"            { TOKENIZE(BTT_INT32)   }
-            "uint"   | "uint32" | "ulong"  | "UINT"   | "UINT32" | "ULONG" | "DWORD" { TOKENIZE(BTT_UINT32)  }
-            "int64"  | "quad"   | "INT64"  | "QUAD"   | "__int64"                    { TOKENIZE(BTT_INT64)   }
-            "uint64" | "uquad"  | "UINT64" | "UQUAD"  | "QWORD"  | "__uint64"        { TOKENIZE(BTT_UINT64)  }
-            "hfloat" | "HFLOAT"                                                      { TOKENIZE(BTT_HFLOAT)  }
-            "float"  | "FLOAT"                                                       { TOKENIZE(BTT_FLOAT)   }
-            "double" | "DOUBLE"                                                      { TOKENIZE(BTT_DOUBLE)  }
+            "void"                                                                   { TOKENIZE(BTT_VOID)     }
+            "bool"                                                                   { TOKENIZE(BTT_BOOL)     }
+            "string"																 { TOKENIZE(BTT_STRING)   }
+            "wstring"																 { TOKENIZE(BTT_WSTRING)  }
+            "wchar_t"																 { TOKENIZE(BTT_WCHAR)    }
+            "char"   | "CHAR"                                                        { TOKENIZE(BTT_CHAR)     }
+            "byte"   | "BYTE"                                                        { TOKENIZE(BTT_BYTE)     }
+            "uchar"  | "UCHAR"                                                       { TOKENIZE(BTT_UCHAR)    }
+            "ubyte"  | "UBYTE"                                                       { TOKENIZE(BTT_UBYTE)    }
+            "short"  | "int16"  | "SHORT"  | "INT16"                                 { TOKENIZE(BTT_SHORT)    }
+            "ushort" | "uint16" | "USHORT" | "UINT16" | "WORD"                       { TOKENIZE(BTT_USHORT)   }
+            "int"    | "int32"  | "long"   | "INT"    | "INT32"  | "LONG"            { TOKENIZE(BTT_INT32)    }
+            "uint"   | "uint32" | "ulong"  | "UINT"   | "UINT32" | "ULONG" | "DWORD" { TOKENIZE(BTT_UINT32)   }
+            "int64"  | "quad"   | "INT64"  | "QUAD"   | "__int64"                    { TOKENIZE(BTT_INT64)    }
+            "uint64" | "uquad"  | "UINT64" | "UQUAD"  | "QWORD"  | "__uint64"        { TOKENIZE(BTT_UINT64)   }
+            "hfloat" | "HFLOAT"                                                      { TOKENIZE(BTT_HFLOAT)   }
+            "float"  | "FLOAT"                                                       { TOKENIZE(BTT_FLOAT)    }
+            "double" | "DOUBLE"                                                      { TOKENIZE(BTT_DOUBLE)   }
+            "time_t"                                                                 { TOKENIZE(BTT_TIME)     }
+            "DOSDATE"                                                                { TOKENIZE(BTT_DOSDATE)  }
+            "DOSTIME"                                                                { TOKENIZE(BTT_DOSTIME)  }
+            "OLETIME"                                                                { TOKENIZE(BTT_OLETIME)  }
+            "FILETIME"                                                               { TOKENIZE(BTT_FILETIME) }
 
             "const"     { TOKENIZE(BTT_CONST)    }
             "local"     { TOKENIZE(BTT_LOCAL)    }

@@ -211,6 +211,7 @@ class NScalarType: public NBasicType
         bool is_fp;
 };
 
+
 class NStringType: public NBasicType
 {
     AST_NODE(NStringType)
@@ -218,6 +219,46 @@ class NStringType: public NBasicType
     public:
         NStringType(const std::string& name): NBasicType(name, 8) { }
         virtual VMValuePtr execute(VM *vm);
+};
+
+class NDosDate: public NScalarType
+{
+    AST_NODE(NDosDate)
+
+    public:
+        NDosDate(const std::string& name): NScalarType(name, 16) { is_signed = false; }
+};
+
+class NDosTime: public NScalarType
+{
+    AST_NODE(NDosTime)
+
+    public:
+        NDosTime(const std::string& name): NScalarType(name, 16) { is_signed = false; }
+};
+
+class NTime: public NScalarType
+{
+    AST_NODE(NTime)
+
+    public:
+        NTime(const std::string& name): NScalarType(name, 32) { is_signed = false; }
+};
+
+class NFileTime: public NScalarType
+{
+    AST_NODE(NFileTime)
+
+    public:
+        NFileTime(const std::string& name): NScalarType(name, 64) { is_signed = false; }
+};
+
+class NOleTime: public NScalarType
+{
+    AST_NODE(NOleTime)
+
+    public:
+        NOleTime(const std::string& name): NScalarType(name, 64) { is_signed = false; }
 };
 
 class NEnum: public NCompoundType

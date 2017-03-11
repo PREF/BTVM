@@ -35,6 +35,7 @@
 %type scalar               { NScalarType*     }
 %type string               { NType*           }
 %type character            { NType*           }
+%type datetime             { NType*           }
 %type param                { NArgument*       }
 %type var                  { NVariable*       }
 %type var_no_assign        { NVariable*       }
@@ -142,6 +143,7 @@ custom_var(A)         ::= IDENTIFIER(B) ASSIGN boolean(C). { A = new NCustomVari
 type(A)               ::= sign(B) scalar(C).                                        { if(B != -1) C->is_signed = B; A = C; }
 type(A)               ::= sign character(B).                                        { A = B; }
 type(A)               ::= string(B).                                                { A = B; }
+type(A)               ::= datetime(B).                                              { A = B; }
 type(A)               ::= STRUCT              id(B) O_CURLY struct_stms(C) C_CURLY. { A = new NStruct(B, *C); delete C; }
 type(A)               ::= UNION               id(B) O_CURLY struct_stms(C) C_CURLY. { A = new NUnion(B, *C); delete C; }
 type(A)               ::= ENUM   enum_type(B) id(C) O_CURLY enum_def(D)    C_CURLY. { A = new NEnum(C, *D, B); delete D; }
@@ -161,6 +163,12 @@ string(A)             ::= character(B). { A = B; }
 
 character(A)          ::= CHAR(B).   { A = new NStringType(B->value); }
 character(A)          ::= WCHAR(B).  { A = new NStringType(B->value); }
+
+datetime(A)           ::= TIME(B).     { A = new NTime(B->value); }
+datetime(A)           ::= DOSDATE(B).  { A = new NDosDate(B->value); }
+datetime(A)           ::= DOSTIME(B).  { A = new NDosTime(B->value); }
+datetime(A)           ::= OLETIME(B).  { A = new NOleTime(B->value); }
+datetime(A)           ::= FILETIME(B). { A = new NFileTime(B->value); }
 
 scalar(A)             ::= BYTE(B).   { A = new NScalarType(B->value, 8); }
 scalar(A)             ::= UCHAR(B).  { A = new NScalarType(B->value, 8);  A->is_signed = false; }
