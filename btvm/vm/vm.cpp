@@ -265,7 +265,7 @@ VMValuePtr VM::allocVariable(NVariable *nvar)
     else
         vmvalue = std::make_shared<VMValue>(*vmtype); // Copy type information
 
-    vmvalue->value_typedef = nvar->type;
+    vmvalue->value_typedef = this->declaration(nvar->type);
     vmvalue->value_id = nvar->name->value;
 
     if(nvar->is_const)
