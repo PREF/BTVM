@@ -25,13 +25,15 @@ struct BTLocation
 struct BTEntry
 {
     BTEntry() { }
-    BTEntry(const std::string& name): name(name), endianness(BTEndianness::PlatformEndian) { }
-    BTEntry(const VMValuePtr& value, uint32_t endianness): name(value->value_id), value(value), endianness(endianness) { }
+    BTEntry(const std::string& name): name(name), endianness(BTEndianness::PlatformEndian), backcolor(0xFFFFFFFF), forecolor(0xFFFFFFFF) { }
+    BTEntry(const VMValuePtr& value, uint32_t endianness): name(value->value_id), value(value), endianness(endianness), backcolor(0xFFFFFFFF), forecolor(0xFFFFFFFF) { }
 
     std::string name;
     VMValuePtr value;
     BTLocation location;
     uint32_t endianness;
+    uint32_t backcolor;
+    uint32_t forecolor;
     std::vector< std::shared_ptr<BTEntry> > children;
 };
 

@@ -64,6 +64,22 @@ VMValuePtr VM::error(const string &msg)
     return VMValuePtr();
 }
 
+VMValuePtr VM::argumentError(NCall *ncall, size_t expected)
+{
+    return this->error("'" + ncall->name->value + "' " + "expects " + std::to_string(expected) + " arguments, " +
+                       std::to_string(ncall->arguments.size()) + " given");
+}
+
+VMValuePtr VM::typeError(Node *n, const string &expected)
+{
+    return this->error("Expected '" + expected + "', '" + node_typename(n) + "' given");
+}
+
+VMValuePtr VM::typeError(const VMValuePtr &vmvalue, const string &expected)
+{
+    return this->error("Expected '" + expected + "', '" + vmvalue->type_name() + "' given");
+}
+
 void VM::syntaxError(const string &token, unsigned int line)
 {
     this->error("Syntax error near '" + token + "' at line " + std::to_string(line));
@@ -73,10 +89,7 @@ bool VM::checkArguments(NFunction *nfunc, NCall *ncall)
 {
     if(nfunc->arguments.size() != ncall->arguments.size())
     {
-        this->error("'" + nfunc->name->value + "' " +
-                    "expects " + std::to_string(nfunc->arguments.size()) + " arguments, " +
-                    std::to_string(ncall->arguments.size()) + " given");
-
+        this->argumentError(ncall, nfunc->arguments.size());
         return false;
     }
 

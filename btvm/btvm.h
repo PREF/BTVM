@@ -12,6 +12,9 @@
 
 class BTVM: public VM
 {
+    private:
+        typedef std::unordered_map<uint64_t, uint32_t> ColorMap;
+
     public:
         BTVM(BTVMIO* btvmio);
         ~BTVM();
@@ -20,12 +23,10 @@ class BTVM: public VM
 
     protected:
         virtual void print(const std::string& s);
-        virtual void setBackColor(uint32_t rgb);
-        virtual void setForeColor(uint32_t rgb);
         virtual void onAllocating(const VMValuePtr &vmvalue);
 
     private:
-        BTEntryPtr buildEntry(const VMValuePtr& vmvalue, uint64_t &offset);
+        BTEntryPtr buildEntry(const VMValuePtr& vmvalue, const BTEntryPtr &btparent, uint64_t &offset);
         void initFunctions();
         void initColors();
 
@@ -53,6 +54,8 @@ class BTVM: public VM
     private:
         std::unordered_map<std::string, uint32_t> _colors;
         std::vector<VMValuePtr> _allocations;
+        ColorMap _backcolors;
+        ColorMap _forecolors;
         BTVMIO* _btvmio;
 };
 

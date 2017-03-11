@@ -63,7 +63,7 @@ BTEntryList BTVM::format()
         uint64_t offset = 0;
 
         for(auto it = this->_allocations.begin(); it != this->_allocations.end(); it++)
-            btfmt.push_back(this->buildEntry(*it, offset));
+            btfmt.push_back(this->buildEntry(*it, NULL, offset));
     }
     else
         this->_allocations.clear();
@@ -74,16 +74,6 @@ BTEntryList BTVM::format()
 void BTVM::print(const string &s)
 {
     cout << s;
-}
-
-void BTVM::setBackColor(uint32_t rgb)
-{
-    cout << "Changing background to 0x" << hex << rgb << endl;
-}
-
-void BTVM::setForeColor(uint32_t rgb)
-{
-    cout << "Changing foreground to 0x" << hex << rgb << endl;
 }
 
 void BTVM::onAllocating(const VMValuePtr &vmvalue)
@@ -98,15 +88,29 @@ void BTVM::onAllocating(const VMValuePtr &vmvalue)
         this->_allocations.push_back(vmvalue);
 }
 
-BTEntryPtr BTVM::buildEntry(const VMValuePtr &vmvalue, uint64_t& offset)
+BTEntryPtr BTVM::buildEntry(const VMValuePtr &vmvalue, const BTEntryPtr& btparent, uint64_t& offset)
 {
     BTEntryPtr btentry = std::make_shared<BTEntry>(vmvalue, this->_btvmio->endianness());
     btentry->location = BTLocation(offset, this->sizeOf(vmvalue));
 
+    auto it = this->_backcolors.find(offset);
+
+    if(it != this->_backcolors.end())
+        btentry->backcolor = it->second;
+    else if(btparent)
+        btentry->backcolor = btparent->backcolor;
+
+    it = this->_forecolors.find(offset);
+
+    if(it != this->_forecolors.end())
+        btentry->forecolor = it->second;
+    else if(btparent)
+        btentry->forecolor = btparent->forecolor;
+
     if(vmvalue->is_array() || node_is(vmvalue->n_value, NStruct))
     {
         for(auto it = vmvalue->m_value.begin(); it != vmvalue->m_value.end(); it++)
-            btentry->children.push_back(this->buildEntry(*it, offset));
+            btentry->children.push_back(this->buildEntry(*it, btentry, offset));
     }
     else
         offset += this->sizeOf(vmvalue);
@@ -184,41 +188,44 @@ VMValuePtr BTVM::vmPrintf(VM *self, NCall *ncall)
 
 VMValuePtr BTVM::vmSetBackColor(VM *self, NCall *ncall)
 {
-    if(ncall->arguments.empty() || !node_is(ncall->arguments.front(), NIdentifier))
-        return VMValuePtr();
+    if(ncall->arguments.size() != 1)
+        return self->argumentError(ncall, 1);
+
+    if(!node_is(ncall->arguments[0], NIdentifier))
+        return self->typeError(ncall->arguments[0], node_s_typename(NIdentifier));
 
     BTVM* btvm = static_cast<BTVM*>(self);
-    NIdentifier* nid = static_cast<NIdentifier*>(ncall->arguments.front());
+    NIdentifier* nid = static_cast<NIdentifier*>(ncall->arguments[0]);
 
     if(btvm->_colors.find(nid->value) == btvm->_colors.end())
-        return VMValuePtr();
+        return btvm->error("Invalid color '" + nid->value + "'");
 
-    btvm->setBackColor(btvm->_colors[nid->value]);
+    btvm->_backcolors[btvm->_btvmio->offset()] = btvm->_colors[nid->value];
     return VMValuePtr();
 }
 
 VMValuePtr BTVM::vmSetForeColor(VM *self, NCall *ncall)
 {
-    if(ncall->arguments.empty())
-        return VMValuePtr();
+    if(ncall->arguments.size() != 1)
+        return self->argumentError(ncall, 1);
 
-    VMValuePtr vmvalue = ncall->arguments.front()->execute(self);
-
-    if(!vmvalue->is_string())
-        return VMValuePtr();
+    if(!node_is(ncall->arguments[0], NIdentifier))
+        return self->typeError(ncall->arguments[0], node_s_typename(NIdentifier));
 
     BTVM* btvm = static_cast<BTVM*>(self);
+    NIdentifier* nid = static_cast<NIdentifier*>(ncall->arguments.front());
 
-    if(btvm->_colors.find(vmvalue->to_string()) == btvm->_colors.end())
-        return VMValuePtr();
+    if(btvm->_colors.find(nid->value) == btvm->_colors.end())
+        return btvm->error("Invalid color '" + nid->value + "'");
 
-    btvm->setForeColor(btvm->_colors[vmvalue->to_string()]);
+    btvm->_forecolors[btvm->_btvmio->offset()] = btvm->_colors[nid->value];
     return VMValuePtr();
 }
 
 VMValuePtr BTVM::vmLittleEndian(VM *self, NCall *ncall)
 {
-    VMUnused(ncall);
+    if(ncall->arguments.size() != 0)
+        return self->argumentError(ncall, 0);
 
     static_cast<BTVM*>(self)->_btvmio->setLittleEndian();
     return VMValuePtr();
@@ -226,7 +233,8 @@ VMValuePtr BTVM::vmLittleEndian(VM *self, NCall *ncall)
 
 VMValuePtr BTVM::vmBigEndian(VM *self, NCall *ncall)
 {
-    VMUnused(ncall);
+    if(ncall->arguments.size() != 0)
+        return self->argumentError(ncall, 0);
 
     static_cast<BTVM*>(self)->_btvmio->setBigEndian();
     return VMValuePtr();
@@ -234,7 +242,14 @@ VMValuePtr BTVM::vmBigEndian(VM *self, NCall *ncall)
 
 VMValuePtr BTVM::vmCeil(VM *self, NCall *ncall)
 {
+    if(ncall->arguments.size() != 1)
+        return self->argumentError(ncall, 1);
+
     VMValuePtr vmvalue = std::make_shared<VMValue>(*ncall->arguments.front()->execute(self));
+
+    if(!vmvalue->is_scalar())
+        return self->typeError(vmvalue, "scalar");
+
     vmvalue->d_value = std::ceil(vmvalue->d_value);
     return vmvalue;
 }
@@ -248,7 +263,7 @@ VMValuePtr BTVM::vmWarning(VM *self, NCall *ncall)
 VMValuePtr BTVM::vmBtvmTest(VM *self, NCall *ncall)
 {
     if(ncall->arguments.size() != 1)
-        return self->error("Expected 1 argument, " + std::to_string(ncall->arguments.size()) + " given");
+        return self->argumentError(ncall, 1);
 
     VMValuePtr testres = ncall->arguments.front()->execute(self);
 
@@ -262,35 +277,55 @@ VMValuePtr BTVM::vmBtvmTest(VM *self, NCall *ncall)
 
 VMValuePtr BTVM::vmFEof(VM *self, NCall *ncall)
 {
-    VMUnused(ncall);
+    if(ncall->arguments.size() != 0)
+        return self->argumentError(ncall, 0);
+
     BTVM* btvm = static_cast<BTVM*>(self);
     return std::make_shared<VMValue>(btvm->_btvmio->atEof());
 }
 
 VMValuePtr BTVM::vmFileSize(VM *self, NCall *ncall)
 {
-    VMUnused(ncall);
+    if(ncall->arguments.size() != 0)
+        return self->argumentError(ncall, 0);
+
     return std::make_shared<VMValue>(static_cast<BTVM*>(self)->_btvmio->size());
 }
 
 VMValuePtr BTVM::vmFTell(VM *self, NCall *ncall)
 {
-    VMUnused(ncall);
+    if(ncall->arguments.size() != 0)
+        return self->argumentError(ncall, 0);
+
     return std::make_shared<VMValue>(static_cast<BTVM*>(self)->_btvmio->offset());
 }
 
 VMValuePtr BTVM::vmReadBytes(VM *self, NCall *ncall)
 {
+    if(ncall->arguments.size() != 3)
+        return self->argumentError(ncall, 3);
+
     BTVM* btvm = static_cast<BTVM*>(self);
 
-    VMValuePtr dest = ncall->arguments[0]->execute(self);
+    VMValuePtr vmdest = ncall->arguments[0]->execute(self);
+
+    if(!vmdest->is_array() && !vmdest->is_string())
+        return self->typeError(vmdest, "array or string");
+
     VMValuePtr offset = ncall->arguments[1]->execute(self);
+
+    if(!offset->is_scalar())
+        return self->typeError(offset, "scalar");
+
     VMValuePtr size = ncall->arguments[2]->execute(self);
+
+    if(!size->is_scalar())
+        return self->typeError(size, "scalar");
 
     IO_NoSeek(btvm->_btvmio);
 
     btvm->_btvmio->seek(offset->ui_value);
-    btvm->_btvmio->read(dest, size->ui_value);
+    btvm->_btvmio->read(vmdest, size->ui_value);
     return VMValuePtr();
 }
 
@@ -308,8 +343,8 @@ VMValuePtr BTVM::vmReadUInt(VM *self, NCall *ncall)
     {
         pos = ncall->arguments.front()->execute(btvm);
 
-        if(!pos->is_integer())
-            return btvm->error("Integer type expected");
+        if(!pos->is_scalar())
+            return self->typeError(pos, "scalar");
 
         btvm->_btvmio->seek(pos->ui_value);
     }

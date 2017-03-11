@@ -42,6 +42,9 @@ class VM
 
     public: // Error management
         virtual VMValuePtr error(const std::string& msg);
+        VMValuePtr argumentError(NCall* ncall, size_t expected);
+        VMValuePtr typeError(Node* n, const std::string& expected);
+        VMValuePtr typeError(const VMValuePtr& vmvalue, const std::string& expected);
         void syntaxError(const std::string& token, unsigned int line);
 
     private:

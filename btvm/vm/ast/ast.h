@@ -22,6 +22,7 @@ struct delete_node { template<typename T> void operator()(T t) { delete t; } };
 #define anonymous_identifier         (new NIdentifier(anonymous_type_prefix + std::to_string(__id__) + "__"))
 #define is_anonymous_identifier(sid) (sid.find(anonymous_type_prefix) == 0)
 
+#define node_s_typename(n) #n
 #define node_typename(n)    ((n)->__type__())
 #define node_is(n, t)       (n && ((n)->__type__() == #t))
 #define node_inherits(n, t) (n && dynamic_cast<t*>(n))
