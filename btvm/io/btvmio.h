@@ -39,6 +39,7 @@ class BTVMIO
 
     private:
         template<typename T> T cpuEndianness(T value) const;
+        void readInteger(const VMValuePtr& btv, const uint8_t *buffer, uint64_t size, bool issigned);
 
     private:
         int _endianness;
