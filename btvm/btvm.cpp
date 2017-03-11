@@ -91,7 +91,7 @@ void BTVM::onAllocating(const VMValuePtr &vmvalue)
     if(vmvalue->is_const() || vmvalue->is_local())
         return;
 
-    if(!vmvalue->is_node() && !vmvalue->is_array())
+    if((!vmvalue->is_node() && !vmvalue->is_array()) || node_is(vmvalue->n_value, NEnum))
         this->_btvmio->read(vmvalue, this->sizeOf(vmvalue)); // Read value from file
 
     if(this->declarationstack.empty())
@@ -103,7 +103,7 @@ BTEntryPtr BTVM::buildEntry(const VMValuePtr &vmvalue, uint64_t& offset)
     BTEntryPtr btentry = std::make_shared<BTEntry>(vmvalue, this->_btvmio->endianness());
     btentry->location = BTLocation(offset, this->sizeOf(vmvalue));
 
-    if(vmvalue->is_array() || node_is_compound(vmvalue->n_value))
+    if(vmvalue->is_array() || node_is(vmvalue->n_value, NStruct))
     {
         for(auto it = vmvalue->m_value.begin(); it != vmvalue->m_value.end(); it++)
             btentry->children.push_back(this->buildEntry(*it, offset));
@@ -247,11 +247,8 @@ VMValuePtr BTVM::vmWarning(VM *self, NCall *ncall)
 
 VMValuePtr BTVM::vmBtvmTest(VM *self, NCall *ncall)
 {
-    if(ncall->arguments.size() < 1)
-    {
-        cout << "INVALID ARGS" << endl;
-        return std::make_shared<VMValue>(false);
-    }
+    if(ncall->arguments.size() != 1)
+        return self->error("Expected 1 argument, " + std::to_string(ncall->arguments.size()) + " given");
 
     VMValuePtr testres = ncall->arguments.front()->execute(self);
 
@@ -266,7 +263,8 @@ VMValuePtr BTVM::vmBtvmTest(VM *self, NCall *ncall)
 VMValuePtr BTVM::vmFEof(VM *self, NCall *ncall)
 {
     VMUnused(ncall);
-    return std::make_shared<VMValue>(static_cast<BTVM*>(self)->_btvmio->atEof());
+    BTVM* btvm = static_cast<BTVM*>(self);
+    return std::make_shared<VMValue>(btvm->_btvmio->atEof());
 }
 
 VMValuePtr BTVM::vmFileSize(VM *self, NCall *ncall)
