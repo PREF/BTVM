@@ -105,6 +105,7 @@ class VM
     friend class NBasicType;
     friend class NCompoundType;
     friend class NTypedef;
+    friend class NConditional;
     friend class NReturn;
     friend class NBlock;
     friend class NScope;

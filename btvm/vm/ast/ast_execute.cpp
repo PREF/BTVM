@@ -266,6 +266,8 @@ VMValuePtr NCompareOperator::execute(VM *vm)
 
 VMValuePtr NConditional::execute(VM *vm)
 {
+    ScopeContext(vm);
+
     if(*condition->execute(vm))
         return if_body->execute(vm);
     else if(body)
