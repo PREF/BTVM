@@ -21,7 +21,7 @@ class BTVMIO
     public:
         BTVMIO();
         virtual ~BTVMIO();
-        void read(const VMValuePtr &btv, uint64_t size);
+        void read(const VMValuePtr &vmvalue, uint64_t size);
 
     public:
         virtual uint64_t offset() const = 0;
@@ -39,7 +39,7 @@ class BTVMIO
 
     private:
         template<typename T> T cpuEndianness(T value) const;
-        void readInteger(const VMValuePtr& btv, const uint8_t *buffer, uint64_t size, bool issigned);
+        void readInteger(const VMValuePtr& vmvalue, const uint8_t *buffer, uint64_t size, bool issigned);
 
     private:
         int _endianness;

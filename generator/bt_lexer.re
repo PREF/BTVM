@@ -46,7 +46,7 @@ list<BTLexer::Token> BTLexer::lex()
 
             LINE_FEED      = [\n];
             WHITESPACE     = [\r\t ]+;
-            LITERAL_REAL   = [0-9]*"."[0.9]* | [0-9]+".";
+            LITERAL_REAL   = [0-9]*"."[0-9]* | [0-9]+".";
             LITERAL_OCT    = "0"[0-7]*;
             LITERAL_DEC    = [1-9][0-9]*;
             LITERAL_HEX    = "0x"[0-9a-fA-F]+;

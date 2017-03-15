@@ -23,7 +23,8 @@ class BTVM: public VM
 
     protected:
         virtual void print(const std::string& s);
-        virtual void onAllocating(const VMValuePtr &vmvalue);
+        virtual void readValue(const VMValuePtr &vmvar, uint64_t size);
+        virtual void processFormat(const VMValuePtr& vmvar);
 
     private:
         BTEntryPtr buildEntry(const VMValuePtr& vmvalue, const BTEntryPtr &btparent, uint64_t &offset);

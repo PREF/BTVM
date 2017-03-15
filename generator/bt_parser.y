@@ -307,7 +307,7 @@ op_pointer(A)         ::= value(B).                                { A = B; }
 // =======================================================
 //                  Basic Declarations
 // =======================================================
-value(A)              ::= LITERAL_STRING(B).             { A = new NLiteralString(B->value); }
+value(A)              ::= LITERAL_STRING(B).             { A = new NString(B->value); }
 value(A)              ::= O_ROUND expr(B) C_ROUND.       { A = new NBlock(*B); delete B; }
 value(A)              ::= boolean(B).                    { A = B; }
 value(A)              ::= number(B).                     { A = B; }

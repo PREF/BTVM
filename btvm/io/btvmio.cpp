@@ -12,46 +12,37 @@ BTVMIO::~BTVMIO()
 
 }
 
-void BTVMIO::read(const VMValuePtr &btv, uint64_t size)
+void BTVMIO::read(const VMValuePtr &vmvalue, uint64_t size)
 {
-    if(btv->is_array())
-    {
-        for(auto it = btv->m_value.begin(); it != btv->m_value.end(); it++)
-            this->read(*it, size);
-
-        return;
-    }
-
     uint8_t* buffer = static_cast<uint8_t*>(malloc(size));
     this->readData(buffer, size);
 
-    if(btv->is_integer())
+    if(vmvalue->is_integer())
     {
-        if(btv->value_type == VMValueType::Bool)
-            btv->ui_value = (*reinterpret_cast<bool*>(buffer) != 0);
+        if(vmvalue->value_type == VMValueType::Bool)
+            *vmvalue->value_ref<bool>() = (*reinterpret_cast<bool*>(buffer) != 0);
         else
-            this->readInteger(btv, buffer, size, btv->is_signed());
+            this->readInteger(vmvalue, buffer, size, vmvalue->is_signed());
     }
-    else if(btv->is_floating_point())
+    else if(vmvalue->is_floating_point())
     {
-        if(btv->value_type == VMValueType::Float)
-            btv->d_value = *reinterpret_cast<float*>(buffer);
+        if(vmvalue->value_type == VMValueType::Float)
+            *vmvalue->value_ref<float>() = *reinterpret_cast<float*>(buffer);
         else
-            btv->d_value = *reinterpret_cast<double*>(buffer);
+            *vmvalue->value_ref<double>() = *reinterpret_cast<float*>(buffer);
     }
-    else if(node_is(btv->n_value, NEnum))
+    else if(node_is(vmvalue->value_typedef, NEnum))
     {
-        NEnum* nenum = static_cast<NEnum*>(btv->n_value);
+        NEnum* nenum = static_cast<NEnum*>(vmvalue->value_typedef);
 
         if(node_inherits(nenum->type, NScalarType))
         {
             NScalarType* nscalartype = static_cast<NScalarType*>(nenum->type);
-            this->readInteger(btv, buffer, size, nscalartype->is_signed);
+            this->readInteger(vmvalue, buffer, size, nscalartype->is_signed);
         }
     }
-
-    else if(btv->is_string())
-        std::memcpy(btv->s_value.data(), buffer, size);
+    else
+        std::memcpy(vmvalue->value_ref<char>(), buffer, size);
 
     free(buffer);
 }
@@ -71,28 +62,28 @@ void BTVMIO::setBigEndian()
     this->_endianness = BTEndianness::BigEndian;
 }
 
-void BTVMIO::readInteger(const VMValuePtr &btv, const uint8_t *buffer, uint64_t size, bool issigned)
+void BTVMIO::readInteger(const VMValuePtr &vmvalue, const uint8_t *buffer, uint64_t size, bool issigned)
 {
     if(issigned)
     {
         if(size <= 1)
-            btv->si_value = *buffer;
+            *vmvalue->value_ref<int64_t>() = *buffer;
          else if(size <= 2)
-            btv->si_value = this->cpuEndianness(*reinterpret_cast<const int16_t*>(buffer));
+            *vmvalue->value_ref<int64_t>() = this->cpuEndianness(*reinterpret_cast<const int16_t*>(buffer));
          else if(size <= 4)
-            btv->si_value = this->cpuEndianness(*reinterpret_cast<const int32_t*>(buffer));
+            *vmvalue->value_ref<int64_t>() = this->cpuEndianness(*reinterpret_cast<const int32_t*>(buffer));
          else
-            btv->si_value = this->cpuEndianness(*reinterpret_cast<const int64_t*>(buffer));
+            *vmvalue->value_ref<int64_t>() = this->cpuEndianness(*reinterpret_cast<const int64_t*>(buffer));
 
          return;
     }
 
     if(size <= 1)
-        btv->ui_value = *buffer;
+        *vmvalue->value_ref<uint64_t>() = *buffer;
     else if(size <= 2)
-        btv->ui_value = this->cpuEndianness(*reinterpret_cast<const uint16_t*>(buffer));
+        *vmvalue->value_ref<uint64_t>() = this->cpuEndianness(*reinterpret_cast<const uint16_t*>(buffer));
     else if(size <= 4)
-        btv->ui_value = this->cpuEndianness(*reinterpret_cast<const uint32_t*>(buffer));
+        *vmvalue->value_ref<uint64_t>() = this->cpuEndianness(*reinterpret_cast<const uint32_t*>(buffer));
     else
-        btv->ui_value = this->cpuEndianness(*reinterpret_cast<const uint64_t*>(buffer));
+        *vmvalue->value_ref<uint64_t>() = this->cpuEndianness(*reinterpret_cast<const uint64_t*>(buffer));
 }

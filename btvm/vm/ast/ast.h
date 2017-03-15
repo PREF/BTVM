@@ -9,12 +9,12 @@
 #include "../vmvalue.h"
 
 class VM;
-class Node;
+struct Node;
 
 typedef std::vector<Node*> NodeList;
 struct delete_node { template<typename T> void operator()(T t) { delete t; } };
 
-#define AST_NODE(x)         public: virtual std::string __type__() const { return #x; }
+#define AST_NODE(x)         virtual std::string __type__() const { return #x; }
 #define delete_nodelist(n)  std::for_each(n.begin(), n.end(), delete_node())
 #define delete_if(n)        if(n) delete n
 
@@ -28,17 +28,13 @@ struct delete_node { template<typename T> void operator()(T t) { delete t; } };
 #define node_inherits(n, t) (n && dynamic_cast<t*>(n))
 #define node_is_compound(n) node_inherits(n, NCompoundType)
 
-class Node
+struct Node
 {
-    public:
-        Node() { __id__ = global_id++; }
-        virtual ~Node() { }
-        virtual std::string dump() const;
-        virtual VMValuePtr execute(VM* vm);
-        virtual std::string __type__() const = 0;
+    Node() { __id__ = global_id++; }
+    virtual ~Node() { }
+    virtual std::string __type__() const = 0;
 
-    public:
-        unsigned long long __id__;
+    unsigned long long __id__;
 
     private:
         static unsigned long long global_id;
@@ -48,583 +44,450 @@ class Node
 //                      Basic Nodes
 // ---------------------------------------------------------
 
-class NBoolean: public Node
+struct NLiteral: public Node
+{
+    AST_NODE(NLiteral)
+
+    NLiteral(): Node() { }
+};
+
+struct NBoolean: public NLiteral
 {
     AST_NODE(NBoolean)
 
-    public:
-        NBoolean(bool value): Node(), value(value) { }
-        virtual std::string dump() const;
-        virtual VMValuePtr execute(VM* vm);
+    NBoolean(bool value): NLiteral(), value(value) { }
 
-    public:
-        bool value;
-
+    bool value;
 };
 
-class NInteger: public Node
+struct NInteger: public NLiteral
 {
     AST_NODE(NInteger)
 
-    public:
-        NInteger(uint64_t value): Node(), value(value) { }
-        virtual std::string dump() const;
-        virtual VMValuePtr execute(VM* vm);
+    NInteger(int64_t value): NLiteral(), value(value) { }
 
-    public:
-        uint64_t value;
+    int64_t value;
 };
 
-class NReal: public Node
+struct NReal: public NLiteral
 {
     AST_NODE(NReal)
 
-    public:
-        NReal(double value): Node(), value(value) { }
-        virtual std::string dump() const;
-        virtual VMValuePtr execute(VM* vm);
+    NReal(double value): NLiteral(), value(value) { }
 
-    public:
-        double value;
+    double value;
 };
 
-class NLiteralString: public Node
+struct NString: public NLiteral
 {
-    AST_NODE(NLiteralString)
+    AST_NODE(NString)
 
-    public:
-        NLiteralString(const std::string& value): Node(), value(value) { }
-        virtual std::string dump() const;
-        virtual VMValuePtr execute(VM* vm);
+    NString(const std::string& value): NLiteral(), value(value) { }
 
-    public:
-        std::string value;
+    std::string value;
 };
 
-class NIdentifier: public Node
+struct NIdentifier: public Node
 {
     AST_NODE(NIdentifier)
 
-    public:
-        NIdentifier(const std::string& value): Node(), value(value) { }
-        virtual std::string dump() const;
-        virtual VMValuePtr execute(VM* vm);
+    NIdentifier(const std::string& value): Node(), value(value) { }
 
-    public:
-        std::string value;
+    std::string value;
 };
 
-class NEnumValue: public Node
+struct NEnumValue: public Node
 {
     AST_NODE(NEnumValue)
 
-    public:
-        NEnumValue(NIdentifier* id): Node(), name(id), value(NULL) { }
-        NEnumValue(NIdentifier* id, Node* value): Node(), name(id), value(value) { }
-        ~NEnumValue() { delete name; delete_if(value); }
-        virtual std::string dump() const;
-        virtual VMValuePtr execute(VM* vm);
+    NEnumValue(NIdentifier* id): Node(), name(id), value(NULL) { }
+    NEnumValue(NIdentifier* id, Node* value): Node(), name(id), value(value) { }
+    ~NEnumValue() { delete name; delete_if(value); }
 
-    public:
-        NIdentifier* name;
-        Node* value;
+    NIdentifier* name;
+    Node* value;
 };
 
-class NCustomVariable: public Node
+struct NCustomVariable: public Node
 {
     AST_NODE(NCustomVariable)
 
-    public:
-        NCustomVariable(const std::string& action, Node* value): Node(), action(action), value(value) { }
-        virtual std::string dump() const;
+    NCustomVariable(const std::string& action, Node* value): Node(), action(action), value(value) { }
 
-    public:
-        const std::string& action;
-        Node* value;
+    const std::string& action;
+    Node* value;
 };
 
-class NType: public Node
+struct NType: public Node
 {
     AST_NODE(NType)
 
-    public:
-        NType(const std::string& name): Node(), name(new NIdentifier(name)), size(NULL), is_basic(false), is_compound(false) { }
-        NType(NIdentifier* name, const NodeList& customvars): Node(), name(name), size(NULL), custom_vars(customvars), is_basic(false), is_compound(false) { }
-        NType(NIdentifier* name): Node(), name(name), size(NULL), is_basic(false), is_compound(false) { }
-        ~NType() { delete name; delete_if(size); delete_nodelist(custom_vars); }
-        virtual std::string dump() const;
-        virtual VMValuePtr execute(VM *vm);
+    NType(const std::string& name): Node(), name(new NIdentifier(name)), size(NULL), is_basic(false), is_compound(false) { }
+    NType(NIdentifier* name, const NodeList& customvars): Node(), name(name), size(NULL), custom_vars(customvars), is_basic(false), is_compound(false) { }
+    NType(NIdentifier* name): Node(), name(name), size(NULL), is_basic(false), is_compound(false) { }
+    ~NType() { delete name; delete_if(size); delete_nodelist(custom_vars); }
 
-    public:
-        NIdentifier* name;
-        Node* size;
-        NodeList custom_vars;
-        bool is_basic;
-        bool is_compound;
+    NIdentifier* name;
+    Node* size;
+    NodeList custom_vars;
+    bool is_basic;
+    bool is_compound;
 };
 
-class NBasicType: public NType
+struct NBasicType: public NType
 {
     AST_NODE(NBasicType)
 
-    public:
-        NBasicType(const std::string& name, uint64_t bits): NType(name), bits(bits) { is_basic = true; }
+    NBasicType(const std::string& name, uint64_t bits): NType(name), bits(bits) { is_basic = true; }
 
-    public:
-        uint64_t bits;
+    uint64_t bits;
 };
 
-class NCompoundType: public NType
+struct NCompoundType: public NType
 {
     AST_NODE(NCompoundType)
 
-    public:
-        NCompoundType(const NodeList& fields): NType(anonymous_identifier), members(fields) { is_basic = false; is_compound = true; }
-        NCompoundType(NIdentifier* id, const NodeList& fields): NType(id), members(fields) { is_basic = false; is_compound = true; }
-        NCompoundType(const NodeList& fields, const NodeList& customvars): NType(anonymous_identifier, customvars), members(fields) { is_basic = false; is_compound = true; }
-        NCompoundType(NIdentifier* id, const NodeList& fields, const NodeList& customvars): NType(id, customvars), members(fields) { is_basic = false; is_compound = true; }
-        virtual std::string dump() const;
-        virtual VMValuePtr execute(VM *vm);
+    NCompoundType(const NodeList& fields): NType(anonymous_identifier), members(fields) { is_basic = false; is_compound = true; }
+    NCompoundType(NIdentifier* id, const NodeList& fields): NType(id), members(fields) { is_basic = false; is_compound = true; }
+    NCompoundType(const NodeList& fields, const NodeList& customvars): NType(anonymous_identifier, customvars), members(fields) { is_basic = false; is_compound = true; }
+    NCompoundType(NIdentifier* id, const NodeList& fields, const NodeList& customvars): NType(id, customvars), members(fields) { is_basic = false; is_compound = true; }
 
-   public:
-        NodeList members;
+    NodeList members;
 };
 
-class NBooleanType: public NBasicType
+struct NBooleanType: public NBasicType
 {
     AST_NODE(NBooleanType)
 
-    public:
-        NBooleanType(const std::string& name): NBasicType(name, 8) { }
-        virtual VMValuePtr execute(VM *vm);
+    NBooleanType(const std::string& name): NBasicType(name, 8) { }
 };
 
-class NScalarType: public NBasicType
+struct NScalarType: public NBasicType
 {
     AST_NODE(NScalarType)
 
-    public:
-        NScalarType(const std::string& name, uint64_t bits): NBasicType(name, bits), is_signed(true), is_fp(false) { }
-        virtual VMValuePtr execute(VM *vm);
+    NScalarType(const std::string& name, uint64_t bits): NBasicType(name, bits), is_signed(true), is_fp(false) { }
 
-    public:
-        bool is_signed;
-        bool is_fp;
+    bool is_signed;
+    bool is_fp;
 };
 
 
-class NStringType: public NBasicType
+struct NStringType: public NBasicType
 {
     AST_NODE(NStringType)
 
-    public:
-        NStringType(const std::string& name): NBasicType(name, 8) { }
-        virtual VMValuePtr execute(VM *vm);
+    NStringType(const std::string& name): NBasicType(name, 8) { }
 };
 
-class NDosDate: public NScalarType
+struct NDosDate: public NScalarType
 {
     AST_NODE(NDosDate)
 
-    public:
-        NDosDate(const std::string& name): NScalarType(name, 16) { is_signed = false; }
+    NDosDate(const std::string& name): NScalarType(name, 16) { is_signed = false; }
 };
 
-class NDosTime: public NScalarType
+struct NDosTime: public NScalarType
 {
     AST_NODE(NDosTime)
 
-    public:
-        NDosTime(const std::string& name): NScalarType(name, 16) { is_signed = false; }
+    NDosTime(const std::string& name): NScalarType(name, 16) { is_signed = false; }
 };
 
-class NTime: public NScalarType
+struct NTime: public NScalarType
 {
     AST_NODE(NTime)
 
-    public:
-        NTime(const std::string& name): NScalarType(name, 32) { is_signed = false; }
+    NTime(const std::string& name): NScalarType(name, 32) { is_signed = false; }
 };
 
-class NFileTime: public NScalarType
+struct NFileTime: public NScalarType
 {
     AST_NODE(NFileTime)
 
-    public:
-        NFileTime(const std::string& name): NScalarType(name, 64) { is_signed = false; }
+    NFileTime(const std::string& name): NScalarType(name, 64) { is_signed = false; }
 };
 
-class NOleTime: public NScalarType
+struct NOleTime: public NScalarType
 {
     AST_NODE(NOleTime)
 
-    public:
-        NOleTime(const std::string& name): NScalarType(name, 64) { is_signed = false; }
+    NOleTime(const std::string& name): NScalarType(name, 64) { is_signed = false; }
 };
 
-class NEnum: public NCompoundType
+struct NEnum: public NCompoundType
 {
     AST_NODE(NEnum)
 
-    public:
-        NEnum(const NodeList& members, NType* type): NCompoundType(members), type(type) { this->type = (type ? type : new NScalarType("int", 32)); }
-        NEnum(NIdentifier* id, const NodeList& members, NType* type): NCompoundType(id, members), type(type) { this->type = (type ? type : new NScalarType("int", 32)); }
-        NEnum(const NodeList& members, const NodeList& customvars, NType* type): NCompoundType(members, customvars), type(type) { this->type = (type ? type : new NScalarType("int", 32)); }
-        NEnum(NIdentifier* id, const NodeList& members, const NodeList& customvars, NType* type): NCompoundType(id, members, customvars), type(type) { this->type = (type ? type : new NScalarType("int", 32)); }
-        ~NEnum() { delete_if(type); }
-        virtual std::string dump() const;
-        virtual VMValuePtr execute(VM *vm);
+    NEnum(const NodeList& members, NType* type): NCompoundType(members), type(type) { this->type = (type ? type : new NScalarType("int", 32)); }
+    NEnum(NIdentifier* id, const NodeList& members, NType* type): NCompoundType(id, members), type(type) { this->type = (type ? type : new NScalarType("int", 32)); }
+    NEnum(const NodeList& members, const NodeList& customvars, NType* type): NCompoundType(members, customvars), type(type) { this->type = (type ? type : new NScalarType("int", 32)); }
+    NEnum(NIdentifier* id, const NodeList& members, const NodeList& customvars, NType* type): NCompoundType(id, members, customvars), type(type) { this->type = (type ? type : new NScalarType("int", 32)); }
+    ~NEnum() { delete_if(type); }
 
-    public:
-        NType* type;
+    NType* type;
 };
 
-class NBlock: public Node
+struct NBlock: public Node
 {
     AST_NODE(NBlock)
 
-    public:
-        NBlock(): Node() { }
-        NBlock(const NodeList& statements): Node(), statements(statements) { }
-        ~NBlock() { delete_nodelist(statements); }
-        virtual std::string dump() const;
-        virtual VMValuePtr execute(VM* vm);
+    NBlock(): Node() { }
+    NBlock(const NodeList& statements): Node(), statements(statements) { }
+    ~NBlock() { delete_nodelist(statements); }
 
-    public:
-        NodeList statements;
+    NodeList statements;
 };
 
-class NVariable: public Node
+struct NVariable: public Node
 {
     AST_NODE(NVariable)
 
-    public:
-        NVariable(NIdentifier* name, Node* size): Node(), type(NULL), name(name), value(NULL), size(size), is_const(false), is_local(false) { }
-        virtual ~NVariable() { delete type; delete name; delete_if(value); delete size; }
-        virtual std::string dump() const;
-        virtual VMValuePtr execute(VM *vm);
+    NVariable(NIdentifier* name, Node* size): Node(), type(NULL), name(name), value(NULL), size(size), is_const(false), is_local(false) { }
+    virtual ~NVariable() { delete type; delete name; delete_if(value); delete size; }
 
-    public:
-        Node* type;
-        NIdentifier* name;
-        NodeList names;
-        NodeList custom_vars;
-        Node* value;
-        Node* size;
-        bool is_const;
-        bool is_local;
+    Node* type;
+    NIdentifier* name;
+    NodeList names;
+    NodeList custom_vars;
+    Node* value;
+    Node* size;
+    bool is_const;
+    bool is_local;
 };
 
-class NArgument: public NVariable
+struct NArgument: public NVariable
 {
     AST_NODE(NArgument)
 
-    public:
-        NArgument(Node* type, NIdentifier* name, Node* size): NVariable(name, size), by_reference(false) { this->type = type; this->is_local = true; }
-        virtual VMValuePtr execute(VM *vm);
+    NArgument(Node* type, NIdentifier* name, Node* size): NVariable(name, size), by_reference(false) { this->type = type; this->is_local = true; }
 
-    public:
-        bool by_reference;
+    bool by_reference;
 };
 
 // ---------------------------------------------------------
 //                     Statement Nodes
 // ---------------------------------------------------------
 
-class NReturn: public Node
+struct NReturn: public Node
 {
     AST_NODE(NReturn)
 
-    public:
-        NReturn(NBlock* block): Node(), block(block) { }
-        ~NReturn() { delete block; }
-        virtual std::string dump() const;
-        virtual VMValuePtr execute(VM* vm);
+    NReturn(NBlock* block): Node(), block(block) { }
+    ~NReturn() { delete block; }
 
-    public:
-        NBlock* block;
+    NBlock* block;
 };
 
-class NBinaryOperator: public Node
+struct NBinaryOperator: public Node
 {
     AST_NODE(NBinaryOperator)
 
-    public:
-        NBinaryOperator(Node* left, const std::string& op, Node* right): Node(), left(left), op(op), right(right) { }
-        ~NBinaryOperator() { delete left; delete right; }
-        virtual std::string dump() const;
-        virtual VMValuePtr execute(VM *vm);
+    NBinaryOperator(Node* left, const std::string& op, Node* right): Node(), left(left), op(op), right(right) { }
+    ~NBinaryOperator() { delete left; delete right; }
 
-    public:
-        Node* left;
-        std::string op;
-        Node* right;
+    Node* left;
+    std::string op;
+    Node* right;
 };
 
-class NUnaryOperator: public Node
+struct NUnaryOperator: public Node
 {
     AST_NODE(NUnaryOperator)
 
-    public:
-        NUnaryOperator(const std::string& op, Node* expression, bool prefix): Node(), op(op), expression(expression), is_prefix(prefix) { }
-        ~NUnaryOperator() { delete expression; }
-        virtual std::string dump() const;
-        virtual VMValuePtr execute(VM *vm);
+    NUnaryOperator(const std::string& op, Node* expression, bool prefix): Node(), op(op), expression(expression), is_prefix(prefix) { }
+    ~NUnaryOperator() { delete expression; }
 
-    public:
-        std::string op;
-        Node* expression;
-        bool is_prefix;
+    std::string op;
+    Node* expression;
+    bool is_prefix;
 };
 
-class NDotOperator: public NBinaryOperator
+struct NDotOperator: public NBinaryOperator
 {
-    AST_NODE(NDot)
+    AST_NODE(NDotOperator)
 
-    public:
-        NDotOperator(Node* left, NIdentifier* right): NBinaryOperator(left, ".", right) { }
-        virtual VMValuePtr execute(VM* vm);
+    NDotOperator(Node* left, NIdentifier* right): NBinaryOperator(left, ".", right) { }
 };
 
-class NIndexOperator: public Node
+struct NIndexOperator: public Node
 {
     AST_NODE(NIndexOperator)
 
-    public:
-        NIndexOperator(Node* expression, Node* index): Node(), expression(expression), index(index) { }
-        ~NIndexOperator() { delete index; }
-        virtual std::string dump() const;
-        virtual VMValuePtr execute(VM *vm);
+    NIndexOperator(Node* expression, Node* index): Node(), expression(expression), index(index) { }
+    ~NIndexOperator() { delete index; }
 
-    public:
-      Node* expression;
-      Node* index;
+    Node* expression;
+    Node* index;
 };
 
-class NCompareOperator: public Node
+struct NCompareOperator: public Node
 {
     AST_NODE(NCompareOperator)
 
-    public:
-        NCompareOperator(Node* lhs, Node* rhs, const std::string& cmp): Node(), left(lhs), right(rhs), cmp(cmp) { }
-        ~NCompareOperator() { delete left; delete right; }
-        virtual std::string dump() const;
-        virtual VMValuePtr execute(VM *vm);
+    NCompareOperator(Node* lhs, Node* rhs, const std::string& cmp): Node(), left(lhs), right(rhs), cmp(cmp) { }
+    ~NCompareOperator() { delete left; delete right; }
 
-    public:
-        Node* left;
-        Node* right;
-        std::string cmp;
+    Node* left;
+    Node* right;
+    std::string cmp;
 };
 
-class NConditional: public Node
+struct NConditional: public Node
 {
-    AST_NODE(NConditionalOperator)
+    AST_NODE(NConditional)
 
-    public:
-        NConditional(Node* condition, Node* ifbody): Node(), condition(condition), if_body(ifbody), body(NULL) { }
-        NConditional(Node* condition, Node* ifbody, Node* body): Node(), condition(condition), if_body(ifbody), body(body) { }
-        ~NConditional() { delete condition; delete if_body; delete_if(body); }
-        virtual std::string dump() const;
-        virtual VMValuePtr execute(VM *vm);
+    NConditional(Node* condition, Node* trueblock): Node(), condition(condition), true_block(trueblock), false_block(NULL) { }
+    NConditional(Node* condition, Node* trueblock, Node* falseblock): Node(), condition(condition), true_block(trueblock), false_block(falseblock) { }
+    ~NConditional() { delete condition; delete true_block; delete_if(false_block); }
 
-    public:
-        Node* condition;
-        Node* if_body;
-        Node* body;
+    Node* condition;
+    Node* true_block;
+    Node* false_block;
 };
 
-class NWhile: public Node
+struct NWhile: public NConditional
 {
     AST_NODE(NWhile)
 
-    public:
-        NWhile(Node* condition, Node* body): Node(), condition(condition), body(body) { }
-        ~NWhile() { delete condition; delete body; }
-        virtual std::string dump() const;
-        virtual VMValuePtr execute(VM *vm);
-
-    public:
-        Node* condition;
-        Node* body;
+    NWhile(Node* condition, Node* trueblock): NConditional(condition, trueblock) { }
 };
 
-class NDoWhile: public NWhile
+struct NDoWhile: public NWhile
 {
     AST_NODE(NDoWhile)
 
-    public:
-        NDoWhile(Node* body, Node* condition): NWhile(condition, body) { }
-        virtual VMValuePtr execute(VM *vm);
+    NDoWhile(Node* body, Node* condition): NWhile(condition, body) { }
 };
 
-class NFor: public Node
+struct NFor: public NConditional
 {
     AST_NODE(NFor)
 
-    public:
-        NFor(Node* counter, Node* condition, Node* update, Node* body): Node(), counter(counter), condition(condition), update(update), body(body) { }
-        ~NFor() { delete counter; delete condition; delete update; delete body; }
-        virtual std::string dump() const;
-        virtual VMValuePtr execute(VM *vm);
+    NFor(Node* counter, Node* condition, Node* update, Node* trueblock): NConditional(condition, trueblock), counter(counter), update(update) { }
+    ~NFor() { delete counter; delete update; }
 
-    public:
-        Node* counter;
-        Node* condition;
-        Node* update;
-        Node* body;
+    Node* counter;
+    Node* update;
 };
 
-class NSizeOf: public Node
+struct NSizeOf: public Node
 {
     AST_NODE(NSizeOf)
 
-    public:
-        NSizeOf(Node* expression): Node(), expression(expression) { }
-        ~NSizeOf() { delete expression; }
-        virtual std::string dump() const;
-        virtual VMValuePtr execute(VM *vm);
+    NSizeOf(Node* expression): Node(), expression(expression) { }
+    ~NSizeOf() { delete expression; }
 
-    public:
-        Node* expression;
+    Node* expression;
 };
 
-class NVMState: public Node
+struct NVMState: public Node
 {
     AST_NODE(NVMState)
 
-    public:
-        NVMState(int state): Node(), state(state) { }
-        virtual std::string dump() const;
-        virtual VMValuePtr execute(VM *vm);
+    NVMState(int state): Node(), state(state) { }
 
-    public:
-        int state;
+    int state;
 };
 
-class NCase: public Node
+struct NCase: public Node
 {
     AST_NODE(NCase)
 
-    public:
-        NCase(Node* body): Node(), value(NULL), body(body) { }
-        NCase(Node* value, Node* body): Node(), value(value), body(body) { }
-        ~NCase() { delete_if(value); delete body; }
-        virtual std::string dump() const;
-        virtual VMValuePtr execute(VM *vm);
+    NCase(Node* body): Node(), value(NULL), body(body) { }
+    NCase(Node* value, Node* body): Node(), value(value), body(body) { }
+    ~NCase() { delete_if(value); delete body; }
 
-    public:
-        Node* value;
-        Node* body;
+    Node* value;
+    Node* body;
 };
 
-class NSwitch: public Node
+struct NSwitch: public Node
 {
     AST_NODE(NSwitch)
 
-    public:
-        NSwitch(Node* expression, const NodeList& cases): Node(), cases(cases), expression(expression), defaultcase(NULL) { }
-        ~NSwitch() { delete expression; delete_if(defaultcase); /* delete_nodelist(cases); */ }
-        virtual std::string dump() const;
-        virtual VMValuePtr execute(VM *vm);
+    NSwitch(Node* expression, const NodeList& cases): Node(), cases(cases), expression(expression), defaultcase(NULL) { }
+    ~NSwitch() { delete expression; delete_if(defaultcase); /* delete_nodelist(cases); */ }
 
-    public:
-        std::unordered_map<VMValue, uint64_t, VMValueHasher> casemap;
-        NodeList cases;
-        Node* expression;
-        Node* defaultcase;
+    NodeList cases;
+    Node* expression;
+    Node* defaultcase;
 };
 
-class NStruct: public NCompoundType
+struct NStruct: public NCompoundType
 {
     AST_NODE(NStruct)
 
-    public:
-        NStruct(const NodeList& members): NCompoundType(members) { }
-        NStruct(NIdentifier* id, const NodeList& members): NCompoundType(id, members) { }
-        NStruct(const NodeList& members, const NodeList& customvars): NCompoundType(members, customvars) { }
-        NStruct(NIdentifier* id, const NodeList& members, const NodeList& customvars): NCompoundType(id, members, customvars) { }
+    NStruct(const NodeList& members): NCompoundType(members) { }
+    NStruct(NIdentifier* id, const NodeList& members): NCompoundType(id, members) { }
+    NStruct(const NodeList& members, const NodeList& customvars): NCompoundType(members, customvars) { }
+    NStruct(NIdentifier* id, const NodeList& members, const NodeList& customvars): NCompoundType(id, members, customvars) { }
 };
 
-class NUnion: public NStruct
+struct NUnion: public NStruct
 {
     AST_NODE(NUnion)
 
-    public:
-        NUnion(const NodeList& fields): NStruct(fields) { }
-        NUnion(NIdentifier* id, const NodeList& fields): NStruct(id, fields) { }
-        NUnion(const NodeList& fields, const NodeList& customvars): NStruct(fields,  customvars) { }
-        NUnion(NIdentifier* id, const NodeList& fields, const NodeList& customvars): NStruct(id, fields, customvars) { }
+    NUnion(const NodeList& fields): NStruct(fields) { }
+    NUnion(NIdentifier* id, const NodeList& fields): NStruct(id, fields) { }
+    NUnion(const NodeList& fields, const NodeList& customvars): NStruct(fields,  customvars) { }
+    NUnion(NIdentifier* id, const NodeList& fields, const NodeList& customvars): NStruct(id, fields, customvars) { }
 };
 
-class NTypedef: public NType
+struct NTypedef: public NType
 {
     AST_NODE(NTypedef)
 
-    public:
-        NTypedef(Node* type, NIdentifier* name, const NodeList& customvars): NType(name, customvars), type(type) { is_basic = false; }
-        virtual ~NTypedef() { delete type; }
-        virtual std::string dump() const;
-        virtual VMValuePtr execute(VM *vm);
+    NTypedef(Node* type, NIdentifier* name, const NodeList& customvars): NType(name, customvars), type(type) { is_basic = false; }
+    virtual ~NTypedef() { delete type; }
 
-    public:
-        Node* type;
+    Node* type;
 };
 
 // ---------------------------------------------------------
 //                     Function Nodes
 // ---------------------------------------------------------
 
-class NFunction: public Node
+struct NFunction: public Node
 {
     AST_NODE(NFunction)
 
-    public:
-        NFunction(NType* type, NIdentifier* name, NBlock* body): Node(), type(type), name(name), body(body) { }
-        NFunction(NType* type, NIdentifier* name, const NodeList& arguments, NBlock* body): Node(), type(type), name(name), arguments(arguments), body(body) { }
-        ~NFunction() { delete type; delete name; delete_nodelist(arguments); delete body; }
-        virtual std::string dump() const;
-        virtual VMValuePtr execute(VM* vm);
+    NFunction(NType* type, NIdentifier* name, NBlock* body): Node(), type(type), name(name), body(body) { }
+    NFunction(NType* type, NIdentifier* name, const NodeList& arguments, NBlock* body): Node(), type(type), name(name), arguments(arguments), body(body) { }
+    ~NFunction() { delete type; delete name; delete_nodelist(arguments); delete body; }
 
-    public:
-        NType* type;
-        NIdentifier* name;
-        NodeList arguments;
-        NBlock* body;
+    NType* type;
+    NIdentifier* name;
+    NodeList arguments;
+    NBlock* body;
 };
 
 // ---------------------------------------------------------
 //                     Expression Nodes
 // ---------------------------------------------------------
 
-class NCall: public Node
+struct NCall: public Node
 {
     AST_NODE(NCall)
 
-    public:
-        NCall(NIdentifier* name): name(name) { }
-        NCall(NIdentifier* name, const NodeList& arguments): name(name), arguments(arguments) { }
-        ~NCall() { delete name; delete_nodelist(arguments); }
-        virtual std::string dump() const;
-        virtual VMValuePtr execute(VM* vm);
+    NCall(NIdentifier* name): name(name) { }
+    NCall(NIdentifier* name, const NodeList& arguments): name(name), arguments(arguments) { }
+    ~NCall() { delete name; delete_nodelist(arguments); }
 
-    public:
-        NIdentifier* name;
-        NodeList arguments;
+    NIdentifier* name;
+    NodeList arguments;
 };
 
-class NCast: public Node
+struct NCast: public Node
 {
     AST_NODE(NCast)
 
-    public:
-        NCast(Node* cast, Node* expression): Node(), cast(cast), expression(expression) { }
-        virtual std::string dump() const;
-        virtual VMValuePtr execute(VM* vm);
+    NCast(Node* cast, Node* expression): Node(), cast(cast), expression(expression) { }
 
-    public:
-        Node* cast;
-        Node* expression;
+    Node* cast;
+    Node* expression;
 };
+
+std::string dump_ast(Node* n);
 
 #endif // AST_H

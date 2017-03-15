@@ -4,37 +4,40 @@
 
 using namespace std;
 
-#define VarArray(name, i) ((name) + "[" + std::to_string(i) + "]")
+#define btv_eq_op() { btv = lbtv; \
+                      btv->assign(*rbtv); }
 
-VM::VM(): ast(NULL), state(VMState::NoState)
+#define btv_eq_lr_op(op) { btv = lbtv; \
+                           btv->assign(*btv op *rbtv); }
+
+VM::VM(): _ast(NULL), state(VMState::NoState)
 {
 
 }
 
 VM::~VM()
 {
-    if(!this->ast)
+    if(!this->_ast)
         return;
 
-    delete this->ast;
-    this->ast = NULL;
+    delete this->_ast;
+    this->_ast = NULL;
 }
 
 VMValuePtr VM::execute(const string &file)
 {
     this->evaluate(this->readFile(file));
 
-    if(!this->ast || (this->state == VMState::Error))
+    if(!this->_ast || (this->state == VMState::Error))
         return VMValuePtr();
 
-    this->result = this->ast->execute(this);
-    return this->result;
+    return this->interpret(this->_ast);
 }
 
 void VM::evaluate(const string &code)
 {
-    if(this->ast)
-        delete this->ast;
+    if(this->_ast)
+        delete this->_ast;
 
     this->state = VMState::NoState;
     VMUnused(code);
@@ -44,138 +47,601 @@ void VM::dump(const string &file, const string &astfile)
 {
     this->evaluate(this->readFile(file));
 
-    if(!this->ast)
+    if(!this->_ast)
         return;
 
-    this->writeFile(astfile, this->ast->dump());
+    this->writeFile(astfile, dump_ast(this->_ast));
 }
 
 void VM::loadAST(NBlock *ast)
 {
-    this->ast = ast;
+    this->_ast = ast;
 }
 
-VMValuePtr VM::error(const string &msg)
+VMValuePtr VM::interpret(const NodeList &nodelist)
 {
-    cout << msg << endl;
+    VMValuePtr res;
 
-    this->state = VMState::Error;
-    this->declarations.clear();
+    for(auto it = nodelist.begin(); it != nodelist.end(); it++)
+    {
+        res = this->interpret(*it);
+
+        if(this->state == VMState::Error)
+            return VMValuePtr();
+        if(this->state == VMState::Return)
+            break;
+    }
+
+    return res;
+}
+
+VMValuePtr VM::interpret(NConditional *nconditional)
+{
+    ScopeContext(this);
+
+    if(*this->interpret(nconditional->condition))
+        return this->interpret(nconditional->true_block);
+    else if(nconditional->false_block)
+        return this->interpret(nconditional->false_block);
+
     return VMValuePtr();
 }
 
-VMValuePtr VM::argumentError(NCall *ncall, size_t expected)
+VMValuePtr VM::interpret(NDoWhile *ndowhile)
 {
-    return this->error("'" + ncall->name->value + "' " + "expects " + std::to_string(expected) + " arguments, " +
-                       std::to_string(ncall->arguments.size()) + " given");
-}
+    ScopeContext(this);
+    VMValuePtr vmvalue;
 
-VMValuePtr VM::typeError(Node *n, const string &expected)
-{
-    return this->error("Expected '" + expected + "', '" + node_typename(n) + "' given");
-}
-
-VMValuePtr VM::typeError(const VMValuePtr &vmvalue, const string &expected)
-{
-    return this->error("Expected '" + expected + "', '" + vmvalue->type_name() + "' given");
-}
-
-void VM::syntaxError(const string &token, unsigned int line)
-{
-    this->error("Syntax error near '" + token + "' at line " + std::to_string(line));
-}
-
-bool VM::checkArguments(NFunction *nfunc, NCall *ncall)
-{
-    if(nfunc->arguments.size() != ncall->arguments.size())
+    do
     {
-        this->argumentError(ncall, nfunc->arguments.size());
-        return false;
-    }
+        vmvalue = this->interpret(ndowhile->true_block);
 
-    for(size_t i = 0; i < nfunc->arguments.size(); i++)
-    {
-        NArgument* narg = static_cast<NArgument*>(nfunc->arguments[i]);
-        VMValuePtr nargtype = narg->type->execute(this);
-        VMValuePtr nparam = ncall->arguments[i]->execute(this);
+        int vms = VMFunctions::state_check(&this->state);
 
-        if(VMFunctions::is_type_compatible(nargtype, nparam))
+        if(vms == VMState::Continue)
             continue;
+        if(vms == VMState::Break)
+            break;
+        if(vms == VMState::Return)
+            return vmvalue;
+    }
+    while(*this->interpret(ndowhile->condition));
 
-        this->error("'" + nfunc->name->value + "' " +
-                    "argument " + std::to_string(i) + " requires '" + nargtype->type_name() + "' type, " +
-                    "'" + nparam->type_name() + "' given");
+    return VMValuePtr();
+}
 
-        return false;
+VMValuePtr VM::interpret(NWhile *nwhile)
+{
+    ScopeContext(this);
+    VMValuePtr vmvalue;
+
+    while(*this->interpret(nwhile->condition))
+    {
+        vmvalue = this->interpret(nwhile->true_block);
+
+        int vms = VMFunctions::state_check(&this->state);
+
+        if(vms == VMState::Continue)
+            continue;
+        if(vms == VMState::Break)
+            break;
+        if(vms == VMState::Return)
+            return vmvalue;
     }
 
-    return true;
+    return VMValuePtr();
 }
 
-bool VM::checkArraySize(const VMValuePtr &arraysize)
+VMValuePtr VM::interpret(NFor *nfor)
 {
-    if(!arraysize->is_integer() || arraysize->is_negative())
-    {
-        if(!arraysize->is_integer())
-            this->error("Expected integer-type, '" + arraysize->type_name() + "' given");
-        else
-            this->error("Array size must be positive, " + std::to_string(arraysize->si_value) + " given");
+    ScopeContext(this);
+    VMValuePtr vmvalue;
 
-        return false;
+    this->interpret(nfor->counter);
+
+    while(*this->interpret(nfor->condition))
+    {
+        this->interpret(nfor->true_block);
+        this->interpret(nfor->update);
+
+        int vms = VMFunctions::state_check(&this->state);
+
+        if(vms == VMState::Continue)
+            continue;
+        if(vms == VMState::Break)
+            break;
+        if(vms == VMState::Return)
+            return vmvalue;
     }
 
-    return true;
+    return VMValuePtr();
+
 }
 
-Node *VM::getSize(NVariable *nvar)
+VMValuePtr VM::interpret(NSwitch *nswitch)
 {
-    Node* ndecl = this->declaration(nvar->type);
+    VMCaseMap casemap = this->buildCaseMap(nswitch);
+    auto itcond = casemap.find(*this->interpret(nswitch->expression));
 
-    if(node_inherits(ndecl, NType))
+    if(itcond == casemap.end())
     {
-        NType* ntype = static_cast<NType*>(ndecl);
+        if(!nswitch->defaultcase)
+            return VMValuePtr();
 
-        if(ntype->size)
-            return ntype->size;
+        return this->interpret(static_cast<NCase*>(nswitch->defaultcase)->body);
     }
 
-    return nvar->size;
-}
+    VMValuePtr vmvalue;
 
-void VM::onAllocating(const VMValuePtr &vmvalue)
-{
-    VMUnused(vmvalue);
-}
-
-Node *VM::declaration(Node *ndecl)
-{
-    if(node_inherits(ndecl, NType))
+    for(auto it = nswitch->cases.begin() + itcond->second; it != nswitch->cases.end(); it++)
     {
-        NType* ntype = static_cast<NType*>(ndecl);
+        NCase* ncase = static_cast<NCase*>(*it);
+        vmvalue = this->interpret(ncase->body);
+
+        int vms = VMFunctions::state_check(&this->state);
+
+        if(vms == VMState::Break)
+            break;
+        else if(vms == VMState::Return)
+            return vmvalue;
+    }
+
+    return VMValuePtr();
+
+}
+
+VMValuePtr VM::interpret(NCompareOperator *ncompare)
+{
+    if(ncompare->cmp == "==")
+        return VMValue::copy_value((*this->interpret(ncompare->left) == *this->interpret(ncompare->right)));
+    else if(ncompare->cmp == "!=")
+        return VMValue::copy_value((*this->interpret(ncompare->left) != *this->interpret(ncompare->right)));
+    else if(ncompare->cmp == "<=")
+        return VMValue::copy_value((*this->interpret(ncompare->left) <= *this->interpret(ncompare->right)));
+    else if(ncompare->cmp == ">=")
+        return VMValue::copy_value((*this->interpret(ncompare->left) >= *this->interpret(ncompare->right)));
+    else if(ncompare->cmp == "<")
+        return VMValue::copy_value((*this->interpret(ncompare->left) <  *this->interpret(ncompare->right)));
+    else if(ncompare->cmp == ">")
+        return VMValue::copy_value((*this->interpret(ncompare->left) >  *this->interpret(ncompare->right)));
+
+    return this->error("Unknown conditional operator '" + ncompare->cmp + "'");
+}
+
+VMValuePtr VM::interpret(NUnaryOperator *nunary)
+{
+    VMValuePtr btv = this->interpret(nunary->expression);
+
+    if(!btv->is_scalar())
+        return this->error("Cannot use unary operators on '" + btv->type_name() + "' types");
+
+    if(nunary->op == "++")
+        return nunary->is_prefix ? VMValue::copy_value(++(*btv)) : VMValue::copy_value((*btv)++);
+
+    if(nunary->op == "--")
+        return nunary->is_prefix ? VMValue::copy_value(--(*btv)) : VMValue::copy_value((*btv)--);
+
+    if(nunary->op == "!")
+        return VMValue::copy_value(!(*btv));
+
+    if(nunary->op == "~")
+        return VMValue::copy_value(~(*btv));
+
+    if(nunary->op == "-")
+        return VMValue::copy_value(-(*btv));
+
+    return this->error("Unknown unary operator '" + nunary->op + "'");
+}
+
+VMValuePtr VM::interpret(NBinaryOperator *nbinary)
+{
+    VMValuePtr lbtv = this->interpret(nbinary->left);
+    VMValuePtr rbtv = this->interpret(nbinary->right);
+
+    if(!VMFunctions::is_type_compatible(lbtv, rbtv))
+        return this->error("Cannot use '" + nbinary->op + "' operator with '" + lbtv->type_name() + "' and '" + rbtv->type_name() + "'");
+
+    VMValuePtr btv;
+
+    if(nbinary->op == "+")
+        btv = VMValue::copy_value(*lbtv + *rbtv);
+    else if(nbinary->op == "-")
+        btv = VMValue::copy_value(*lbtv - *rbtv);
+    else if(nbinary->op == "*")
+        btv = VMValue::copy_value(*lbtv * *rbtv);
+    else if(nbinary->op == "/")
+        btv = VMValue::copy_value(*lbtv / *rbtv);
+    else if(nbinary->op == "%")
+        btv = VMValue::copy_value(*lbtv % *rbtv);
+    else if(nbinary->op == "&")
+        btv = VMValue::copy_value(*lbtv & *rbtv);
+    else if(nbinary->op == "|")
+        btv = VMValue::copy_value(*lbtv | *rbtv);
+    else if(nbinary->op == "^")
+        btv = VMValue::copy_value(*lbtv ^ *rbtv);
+    else if(nbinary->op == "<<")
+        btv = VMValue::copy_value(*lbtv << *rbtv);
+    else if(nbinary->op == ">>")
+        btv = VMValue::copy_value(*lbtv >> *rbtv);
+    else if(nbinary->op == "&&")
+        btv = VMValue::copy_value(*lbtv && *rbtv);
+    else if(nbinary->op == "||")
+        btv = VMValue::copy_value(*lbtv || *rbtv);
+    else if(nbinary->op == "+=")
+        btv_eq_lr_op(+)
+    else if(nbinary->op == "-=")
+        btv_eq_lr_op(-)
+    else if(nbinary->op == "*=")
+        btv_eq_lr_op(*)
+    else if(nbinary->op == "/=")
+        btv_eq_lr_op(/)
+    else if(nbinary->op == "^=")
+        btv_eq_lr_op(^)
+    else if(nbinary->op == "&=")
+        btv_eq_lr_op(&)
+    else if(nbinary->op == "|=")
+        btv_eq_lr_op(|)
+    else if(nbinary->op == "<<=")
+        btv_eq_lr_op(<<)
+    else if(nbinary->op == ">>=")
+        btv_eq_lr_op(>>)
+    else if(nbinary->op == "=")
+        btv_eq_op()
+    else
+        return this->error("Unknown binary operator '" + nbinary->op + "'");
+
+    return btv;
+}
+
+VMValuePtr VM::interpret(NIndexOperator *nindex)
+{
+    VMValuePtr vmindex = this->interpret(nindex->index);
+
+    if(!vmindex->is_integer())
+        return this->error("integer-type expected, '" + vmindex->type_name() + "' given");
+    else if(vmindex->is_negative())
+        return this->error("Positive integer expected, " + vmindex->to_string() + " given");
+
+    VMValuePtr lhs = this->interpret(nindex->expression);
+    return (*lhs)[vmindex->ui_value];
+}
+
+VMValuePtr VM::interpret(NDotOperator *ndot)
+{
+    if(!node_is(ndot->right, NIdentifier))
+        return this->error("Expected NIdentifier, '" + node_typename(ndot->right) + "' given");
+
+    VMValuePtr vmvalue = this->interpret(ndot->left);
+
+    if(!vmvalue->is_compound())
+        return this->error("Cannot use '.' operator on '" + vmvalue->type_name() + "' type");
+
+    NIdentifier* nid = static_cast<NIdentifier*>(ndot->right);
+
+    if(node_is_compound(vmvalue->value_typedef))
+        return (*vmvalue)[nid->value];
+
+    return this->error("Cannot access '" + nid->value + "' from '" + vmvalue->value_id + "' of type '" + node_typename(vmvalue->value_typedef) + "'");
+}
+
+VMValuePtr VM::interpret(NReturn *nreturn)
+{
+    this->state = VMState::Return;
+    return this->interpret(nreturn->block);
+}
+
+VMValuePtr VM::interpret(NCast *ncast)
+{
+    Node* ndecl = this->declaration(ncast->cast);
+    VMValuePtr vmvalue = this->interpret(ncast->expression);
+
+    if(!VMFunctions::type_cast(vmvalue, ndecl))
+        return this->error("Cannot convert '" + vmvalue->type_name() + "' to '" + node_typename(ndecl) + "'");
+
+    return vmvalue;
+}
+
+VMValuePtr VM::interpret(NSizeOf *nsizeof)
+{
+    return VMValue::allocate_literal(this->sizeOf(nsizeof->expression));
+}
+
+VMValuePtr VM::interpret(Node *node)
+{
+    if(this->state == VMState::Error)
+        return VMValuePtr();
+
+    if(node_is(node, NBlock))
+        return this->interpret(static_cast<NBlock*>(node)->statements);
+    else if(node_inherits(node, NType) || node_is(node, NFunction))
+        this->declare(node);
+    else if(node_is(node, NVariable))
+        this->declareVariables(static_cast<NVariable*>(node));
+    else if(node_is(node, NIdentifier))
+        return this->variable(static_cast<NIdentifier*>(node));
+    else if(node_is(node, NCast))
+        return this->interpret(static_cast<NCast*>(node));
+    else if(node_is(node, NReturn))
+        return this->interpret(static_cast<NReturn*>(node));
+    else if(node_is(node, NCompareOperator))
+        return this->interpret(static_cast<NCompareOperator*>(node));
+    else if(node_is(node, NUnaryOperator))
+        return this->interpret(static_cast<NUnaryOperator*>(node));
+    else if(node_is(node, NBinaryOperator))
+        return this->interpret(static_cast<NBinaryOperator*>(node));
+    else if(node_is(node, NIndexOperator))
+        return this->interpret(static_cast<NIndexOperator*>(node));
+    else if(node_is(node, NDotOperator))
+        return this->interpret(static_cast<NDotOperator*>(node));
+    else if(node_is(node, NBoolean))
+        return VMValue::allocate_literal(static_cast<NBoolean*>(node)->value, node);
+    else if(node_is(node, NInteger))
+        return VMValue::allocate_literal(static_cast<NInteger*>(node)->value, node);
+    else if(node_is(node, NReal))
+        return VMValue::allocate_literal(static_cast<NReal*>(node)->value, node);
+    else if(node_is(node, NString))
+        return VMValue::allocate_string(static_cast<NString*>(node)->value, node);
+    else if(node_is(node, NDoWhile))
+        return this->interpret(static_cast<NDoWhile*>(node));
+    else if(node_is(node, NWhile))
+        return this->interpret(static_cast<NWhile*>(node));
+    else if(node_is(node, NFor))
+        return this->interpret(static_cast<NFor*>(node));
+    else if(node_is(node, NSwitch))
+        return this->interpret(static_cast<NSwitch*>(node));
+    else if(node_is(node, NConditional))
+        return this->interpret(static_cast<NConditional*>(node));
+    else if(node_is(node, NSizeOf))
+        return this->interpret(static_cast<NSizeOf*>(node));
+    else if(node_is(node, NCall))
+        return this->call(static_cast<NCall*>(node));
+    else if(node_is(node, NVMState))
+        this->state = static_cast<NVMState*>(node)->state;
+    else
+        throw std::runtime_error("Cannot interpret '" + node_typename(node) + "'");
+
+    return VMValuePtr();
+}
+
+void VM::declare(Node *node)
+{
+    NIdentifier* nid = NULL;
+    Node* ntype = node;
+
+    if(node_is(node, NTypedef))
+    {
+        NTypedef* ntypedef = static_cast<NTypedef*>(node);
+
+        if(node_is_compound(ntypedef->type))
+            this->declare(ntypedef->type);
+
+        nid = ntypedef->name;
+        ntype = ntypedef->type;
+    }
+    else if(node_inherits(node, NType))
+    {
+        NType* ntype = static_cast<NType*>(node);
 
         if(ntype->is_basic)
-            return ndecl;
+            throw std::runtime_error("Trying to declare '" + ntype->name->value + "'");
+
+        nid = ntype->name;
+    }
+    else if(node_is(node, NFunction))
+        nid = static_cast<NFunction*>(node)->name;
+
+    if(!nid)
+    {
+        throw std::runtime_error("Cannot declare '" + node_typename(ntype) + "'");
+        return;
+    }
+
+    if(is_anonymous_identifier(nid->value)) // Skip anonymous IDs
+        return;
+
+    Node* ndecl = this->isDeclared(nid);
+
+    if(ndecl)
+    {
+        this->error("'" + nid->value + "' was declared as '" + node_typename(ntype) + "'");
+        return;
+    }
+
+    VMScope& vmscope = this->_scopestack.empty() ? this->_globalscope : this->_scopestack.back();
+    vmscope.declarations[nid->value] = ntype;
+}
+
+void VM::declareVariables(NVariable *nvar)
+{
+    this->declareVariable(nvar);
+
+    std::for_each(nvar->names.begin(), nvar->names.end(), [this, nvar](Node* n) {
+        NVariable* nsubvar = static_cast<NVariable*>(n);
+
+        nsubvar->type = nvar->type; // FIXME: Borrow type
+        nsubvar->is_local = nvar->is_local;
+        nsubvar->is_const = nvar->is_const;
+
+        this->declareVariable(nsubvar);
+        nsubvar->type = NULL;
+    });
+}
+
+void VM::declareVariable(NVariable *nvar)
+{
+    if(!this->_declarationstack.empty())
+    {
+        VMValuePtr vmvalue = this->_declarationstack.back();
+        vmvalue->m_value.push_back(this->allocVariable(nvar));
+        return;
+    }
+
+    VMScope& scope = this->_scopestack.empty() ? this->_globalscope : this->_scopestack.back();
+
+    if(scope.variables.find(nvar->name->value) != scope.variables.end())
+    {
+        this->error("Shadowing variable '" + nvar->name->value + "'");
+        return;
+    }
+
+    scope.variables[nvar->name->value] = this->allocVariable(nvar);
+}
+
+VMValuePtr VM::allocType(Node *node, Node *size)
+{
+    VMValuePtr vmvalue;
+    Node* ndecl = node_is(node, NType) ? this->declaration(node) : node;
+
+    if(size)
+    {
+        VMValuePtr vmsize = this->interpret(size);
+
+        if(!this->isSizeValid(vmsize))
+            return VMValuePtr();
+
+        if(!node_is(ndecl, NStringType))
+        {
+            vmvalue = VMValue::allocate_array(vmsize->ui_value, ndecl);
+
+            for(uint64_t i = 0; i < vmsize->ui_value; i++)
+                vmvalue->m_value.push_back(this->allocType(ndecl));
+        }
+        else
+            vmvalue = VMValue::allocate_string(vmsize->ui_value, ndecl);
+
+        return vmvalue;
+    }
+
+    if(node_is(ndecl, NStruct))
+    {
+        NStruct* nstruct = static_cast<NStruct*>(ndecl);
+        vmvalue = VMValue::allocate_type(VMValueType::Struct, ndecl);
+
+        this->_declarationstack.push_back(vmvalue);
+        this->interpret(nstruct->members);
+        this->_declarationstack.pop_back();
+    }
+    else if(node_is(ndecl, NEnum))
+    {
+        VMValue vmenumval;
+        NEnum* nenum = static_cast<NEnum*>(ndecl);
+        vmvalue = VMValue::allocate_type(VMValueType::Enum, ndecl);
+
+        for(auto it = nenum->members.begin(); it != nenum->members.end(); it++)
+        {
+            if(!node_is(*it, NEnumValue))
+                return this->error("Unexpected enum-value of type '" + node_typename(*it) + "'");
+
+            NEnumValue* nenumval = static_cast<NEnumValue*>(*it);
+
+            if(nenumval->value)
+                vmenumval = *this->interpret(nenumval->value);
+            else
+            {
+                if(vmenumval.is_null())
+                    vmenumval = *this->allocType(nenum->type);
+                else
+                    vmenumval++;
+            }
+
+            vmenumval.value_typedef = nenum->type;
+            vmenumval.value_id = nenumval->name->value;
+            vmvalue->m_value.push_back(VMValue::copy_value(vmenumval));
+        }
+    }
+    else if(node_inherits(ndecl, NScalarType))
+    {
+        NScalarType* nscalar = static_cast<NScalarType*>(ndecl);
+        vmvalue = VMValue::allocate_scalar(nscalar->bits, nscalar->is_signed, nscalar->is_fp, ndecl);
+    }
+    else if(node_is(ndecl, NBooleanType))
+        vmvalue = VMValue::allocate_boolean(ndecl);
+    else if(node_is(ndecl, NStringType))
+        vmvalue = VMValue::allocate_string(0, ndecl);
+    else
+        throw std::runtime_error("Unknown type: '" + node_typename(ndecl) + "'");
+
+    return vmvalue;
+}
+
+VMValuePtr VM::allocVariable(NVariable *nvar)
+{
+    VMValuePtr vmvar = this->allocType(nvar->type, this->arraySize(nvar));
+    vmvar->value_id = nvar->name->value;
+
+    if(nvar->is_const)
+        vmvar->value_flags |= VMValueFlags::Const;
+
+    if(nvar->is_local)
+        vmvar->value_flags |= VMValueFlags::Local;
+
+    if(!nvar->is_const && !nvar->is_local)
+    {
+        this->readValue(vmvar);
+
+        if(this->_declarationstack.empty())
+            this->processFormat(vmvar);
+    }
+    else if(nvar->value)
+    {
+        VMValuePtr vmvalue = this->interpret(nvar->value);
+
+        if(!VMFunctions::is_type_compatible(vmvar, vmvalue))
+            return this->error("'" + vmvar->value_id + "': cannot assign '" + vmvalue->type_name() + "' to '" + vmvar->type_name() + "'");
+
+        vmvar->assign(*vmvalue);
+    }
+
+    return vmvar;
+}
+
+VMValuePtr VM::variable(NIdentifier *nid)
+{
+   VMValuePtr vmvalue;
+
+   if(!this->_declarationstack.empty())
+       vmvalue = this->_declarationstack.back()->is_member(nid->value);
+
+   if(!vmvalue)
+   {
+       vmvalue = this->symbol<VMValuePtr>(nid, [](const VMScope& vmscope, NIdentifier* nid) -> VMValuePtr {
+           auto it = vmscope.variables.find(nid->value);
+           return it != vmscope.variables.end() ? it->second : NULL;
+       });
+   }
+
+    if(!vmvalue)
+        return this->error("Undeclared variable '" + nid->value + "'");
+
+    return vmvalue;
+}
+
+Node *VM::declaration(Node *node)
+{
+    if(node_is(node, NType))
+    {
+        NType* ntype = static_cast<NType*>(node);
+
+        if(ntype->is_basic)
+            return node;
 
         return this->declaration(ntype->name);
     }
-    else if(node_inherits(ndecl, NIdentifier))
-        return this->declaration(static_cast<NIdentifier*>(ndecl));
-
-    this->error("'" + node_typename(ndecl) + "' unknown declaration type");
-    return NULL;
-}
-
-Node *VM::declaration(NIdentifier *nid)
-{
-    auto itdecl = this->declarations.find(nid->value);
-
-    if(itdecl == this->declarations.end())
+    else if(node_inherits(node, NIdentifier))
     {
-        this->error("'" + nid->value + "' is undeclared");
-        return NULL;
-    }
+        NIdentifier* nid = static_cast<NIdentifier*>(node);
+        Node* ndecl = this->isDeclared(nid);
 
-    return itdecl->second;
+        if(!ndecl)
+            this->error("'" + nid->value + "' is undeclared");
+
+        return ndecl;
+    }
+    else if(node_inherits(node, NType))
+        return node;
+
+    this->error("'" + node_typename(node) + "' unknown declaration type");
+    return NULL;
 }
 
 std::string VM::readFile(const string &file) const
@@ -201,283 +667,219 @@ void VM::writeFile(const string &file, const string &data) const
     std::fclose(fp);
 }
 
-Node *VM::isDeclared(NIdentifier* nid) const
+void VM::readValue(const VMValuePtr &vmvar)
 {
-    auto it = this->declarations.find(nid->value);
-
-    if(it == this->declarations.end())
-        return NULL;
-
-    return it->second;
+    if(vmvar->is_array())
+    {
+        for(auto it = vmvar->m_value.begin(); it != vmvar->m_value.end(); it++)
+            this->readValue(*it);
+    }
+    else if(vmvar->is_readable())
+        this->readValue(vmvar, this->sizeOf(vmvar));
 }
 
-bool VM::allocArguments(NFunction *nfunc, NCall *ncall)
+bool VM::pushScope(NFunction *nfunc, NCall *ncall)
 {
     VMVariables locals; // Build local variable stack
 
     for(size_t i = 0; i < ncall->arguments.size(); i++)
     {
         NArgument* narg = static_cast<NArgument*>(nfunc->arguments[i]);
-        VMValuePtr vmargtype = narg->type->execute(this);
-        VMValuePtr vmargvalue = ncall->arguments[i]->execute(this);
+        VMValuePtr vmarg = this->interpret(ncall->arguments[i]);
 
         if(!narg->by_reference)
-            vmargvalue = std::make_shared<VMValue>(*vmargvalue); // Copy value
+            vmarg = VMValue::copy_value(*vmarg); // Copy value
 
-        if(!VMFunctions::type_cast(vmargtype, vmargvalue))
+        if(!VMFunctions::type_cast(vmarg, narg->type))
         {
             this->error("'" + nfunc->name->value + "' function: " +
-                        "cannot convert argument " + std::to_string(i) + " from '" + vmargvalue->type_name() +
-                        "' to '" + vmargtype->type_name() + "'");
+                        "cannot convert argument " + std::to_string(i) + " from '" + vmarg->type_name() +
+                        "' to '" + node_typename(narg->type) + "'");
 
             return false;
         }
 
-        locals[narg->name->value] = vmargvalue;
+        vmarg->value_id = narg->name->value;
+        locals[narg->name->value] = vmarg;
     }
 
-    this->scopestack.push_back(locals);
+    this->_scopestack.push_back(VMScope(locals));
     return true;
 }
 
-void VM::bindVariable(NVariable *nvar)
+VM::VMCaseMap VM::buildCaseMap(NSwitch *nswitch)
 {
-    if(this->declarationstack.empty())
-    {
-        VMVariables& variables = this->scopestack.empty() ? this->globals : this->scopestack.back();
+    auto it = this->_switchmap.find(nswitch);
 
-        if(variables.find(nvar->name->value) != variables.end())
+    if(it != this->_switchmap.end())
+        return it->second;
+
+    uint64_t i = 0;
+    VMCaseMap casemap;
+
+    for(auto it = nswitch->cases.begin(); it != nswitch->cases.end(); it++)
+    {
+        if(!node_is(*it, NCase))
         {
-            this->error("Shadowing variable '" + nvar->name->value + "'");
-            return;
+            this->error("Expected NCase, got '" + node_typename(*it) + "'");
+            return VMCaseMap();
         }
 
-        variables[nvar->name->value] = this->allocVariable(nvar);
+        NCase* ncase = static_cast<NCase*>(*it);
+
+        if(!ncase->value)
+        {
+            nswitch->defaultcase = ncase;
+            continue;
+        }
+
+        casemap[*this->interpret(ncase->value)] = i++;
     }
-    else
-        this->declarationstack.back()->m_value.push_back(this->allocVariable(nvar));
+
+    this->_switchmap[nswitch] = casemap;
+    return casemap;
 }
 
-VMValuePtr VM::allocVariable(NVariable *nvar)
+VMValuePtr VM::call(NCall *ncall)
 {
-    VMValuePtr vmtype = nvar->type->execute(this), vmvalue;
-    Node* nsize = this->getSize(nvar);
+    if(this->isVMFunction(ncall->name))
+        return this->callVM(ncall);
 
-    if(nsize)
-    {
-        VMValuePtr vmsize = nsize->execute(this);
+    Node* ndecl = this->declaration(ncall->name);
 
-        if(!this->checkArraySize(vmsize))
-            return VMValuePtr();
+    if(!ndecl)
+        return this->error("Function '" +  ncall->name->value + "' is not declared");
 
-        if(vmtype->is_string())
-            vmvalue = std::make_shared<VMValue>(VMValue::build_string(vmsize->ui_value));
-        else
-            vmvalue = std::make_shared<VMValue>(VMValue::build_array(vmsize->ui_value));
-    }
-    else
-        vmvalue = std::make_shared<VMValue>(*vmtype); // Copy type information
+    if(!node_is(ndecl, NFunction))
+        return this->error("Trying to call a '" + node_typename(ndecl) + "' type");
 
-    vmvalue->value_typedef = this->declaration(nvar->type);
-    vmvalue->value_id = nvar->name->value;
+    NFunction* nfunc = static_cast<NFunction*>(ndecl);
 
-    if(nvar->is_const)
-        vmvalue->value_flags |= VMValueFlags::Const;
+    if(nfunc->arguments.size() != ncall->arguments.size())
+        return this->argumentError(ncall, nfunc->arguments.size());
 
-    if(nvar->is_local)
-        vmvalue->value_flags |= VMValueFlags::Local;
+    if(!this->pushScope(nfunc, ncall))
+        return VMValuePtr();
 
-    this->initVariable(vmtype, vmvalue, (nvar->value ? nvar->value->execute(this) : NULL));
-    return vmvalue;
+    VMValuePtr res = this->interpret(nfunc->body);
+    this->_scopestack.pop_back();
+    this->state = VMState::NoState; // Reset VM's state
+    return res;
 }
 
-void VM::bindVariables(NVariable *nvar)
+
+Node *VM::isDeclared(NIdentifier* nid) const
 {
-    this->bindVariable(nvar);
-
-    std::for_each(nvar->names.begin(), nvar->names.end(), [this, nvar](Node* n) {
-        NVariable* nsubvar = static_cast<NVariable*>(n);
-
-        nsubvar->type = nvar->type; // FIXME: Borrow type
-        nsubvar->is_local = nvar->is_local;
-        nsubvar->is_const = nvar->is_const;
-
-        this->bindVariable(nsubvar);
-        nsubvar->type = NULL;
+    return this->symbol<Node*>(nid, [](const VMScope& vmscope, NIdentifier* nid) -> Node* {
+        auto it = vmscope.declarations.find(nid->value);
+        return it != vmscope.declarations.end() ? it->second : NULL;
     });
 }
 
-VMValuePtr VM::variable(NIdentifier *id)
+bool VM::isVMFunction(NIdentifier *id) const
 {
-    VMValuePtr res;
-
-    if(!this->declarationstack.empty() && (res = this->declarationstack.back()->is_member(id->value)))
-        return res;
-
-    VMVariables::iterator itvar;
-
-    for(auto it = this->scopestack.rbegin(); it != this->scopestack.rend(); it++) // Loop through parent scopes
-    {
-        itvar = it->find(id->value);
-
-        if(itvar == it->end())
-            continue;
-
-        return itvar->second;
-    }
-
-    itvar = this->globals.find(id->value); // Try globals
-
-    if(itvar == this->globals.end())
-        return this->error("Undeclared variable '" + id->value + "'");
-
-    return itvar->second;
+    return this->functions.find(id->value) != this->functions.cend();
 }
 
-void VM::initVariable(const VMValuePtr& vmtype, const VMValuePtr &vmvalue, const VMValuePtr &defaultvalue)
+VMValuePtr VM::error(const string &msg)
 {
-    if(defaultvalue)
-    {
-        if(!VMFunctions::is_type_compatible(vmtype, defaultvalue))
-        {
-            this->error("Cannot initialize '" + vmvalue->value_id + "' of type '" + vmvalue->type_name() +
-                        "' with '" + defaultvalue->type_name() + "' type");
+    cout << msg << endl;
 
-            return;
-        }
-
-        if((vmvalue->is_const() || vmvalue->is_local()))
-            vmvalue->assign(*defaultvalue);
-    }
-
-    this->onAllocating(vmvalue);
-
-    if(vmvalue->is_array() || node_is_compound(vmvalue->n_value))
-        this->declarationstack.push_back(vmvalue);
-
-    if(vmvalue->is_array())
-    {
-        for(uint64_t i = 0; i < vmvalue->m_value.capacity(); i++)
-        {
-            VMValuePtr vmelementvalue = std::make_shared<VMValue>(*vmtype); // Copy type information
-            vmelementvalue->value_typedef = vmvalue->value_typedef;
-            vmelementvalue->value_id = VarArray(vmvalue->value_id, i);
-
-            this->initVariable(vmtype, vmelementvalue);
-            vmvalue->m_value.push_back(vmelementvalue);
-        }
-    }
-    else if(node_is(vmvalue->n_value, NEnum))
-    {
-        NEnum* nenum = static_cast<NEnum*>(vmtype->n_value);
-        VMValue vmenumval;
-
-        for(auto it = nenum->members.begin(); it != nenum->members.end(); it++)
-        {
-            if(!node_is(*it, NEnumValue))
-            {
-                this->error("Unexpected enum-value of type '" + node_typename(*it) + "'");
-                break;
-            }
-
-            NEnumValue* nenumval = static_cast<NEnumValue*>(*it);
-
-            if(nenumval->value)
-                vmenumval = *nenumval->value->execute(this);
-            else
-            {
-                if(vmenumval.is_null())
-                    vmenumval = *nenum->type->execute(this);
-                else
-                    vmenumval++;
-            }
-
-            vmenumval.value_typedef = nenum->type;
-            vmenumval.value_id = nenumval->name->value;
-            vmvalue->m_value.push_back(std::make_shared<VMValue>(vmenumval));
-        }
-    }
-    else if(node_is_compound(vmvalue->n_value))
-    {
-        NCompoundType* ncompound = static_cast<NCompoundType*>(vmtype->n_value);
-
-        for(auto it = ncompound->members.begin(); it != ncompound->members.end(); it++)
-            (*it)->execute(this);
-    }
-
-    if(vmvalue->is_array() || node_is_compound(vmvalue->n_value))
-        this->declarationstack.pop_back();
+    this->state = VMState::Error;
+    this->_globalscope.variables.clear();
+    this->_globalscope.declarations.clear();
+    this->_scopestack.clear();
+    return VMValuePtr();
 }
 
-void VM::declare(NIdentifier* nid, Node *node)
+VMValuePtr VM::argumentError(NCall *ncall, size_t expected)
 {
-    if(is_anonymous_identifier(nid->value)) // Skip anonymous IDs
-        return;
-
-    Node* declnode = this->isDeclared(nid);
-
-    if(declnode)
-    {
-        this->error("'" + nid->value + "' was declared as '" + node_typename(node) + "'");
-        return;
-    }
-
-    this->declarations[nid->value] = node;
+    return this->error("'" + ncall->name->value + "' " +
+                       "expects " + std::to_string(expected) + " arguments, " +
+                       std::to_string(ncall->arguments.size()) + " given");
 }
 
-uint64_t VM::sizeOf(Node *node)
+VMValuePtr VM::typeError(Node *n, const string &expected)
+{
+    return this->error("Expected '" + expected + "', '" + node_typename(n) + "' given");
+}
+
+VMValuePtr VM::typeError(const VMValuePtr &vmvalue, const string &expected)
+{
+    return this->error("Expected '" + expected + "', '" + vmvalue->type_name() + "' given");
+}
+
+void VM::syntaxError(const string &token, unsigned int line)
+{
+    this->error("Syntax error near '" + token + "' at line " + std::to_string(line));
+}
+
+bool VM::isSizeValid(const VMValuePtr &vmvalue)
+{
+    if(!vmvalue->is_integer() || vmvalue->is_negative())
+    {
+        if(!vmvalue->is_integer())
+            this->error("Expected integer-type, '" + vmvalue->type_name() + "' given");
+        else
+            this->error("Array size must be positive, " + std::to_string(vmvalue->si_value) + " given");
+
+        return false;
+    }
+
+    return true;
+}
+
+Node *VM::arraySize(NVariable *nvar)
+{
+    Node* ndecl = this->declaration(nvar->type);
+
+    if(node_inherits(ndecl, NType))
+    {
+        NType* ntype = static_cast<NType*>(ndecl);
+
+        if(ntype->size)
+            return ntype->size;
+    }
+
+    return nvar->size;
+}
+
+int64_t VM::sizeOf(Node *node)
 {
     if(node_inherits(node, NBasicType))
         return static_cast<NBasicType*>(node)->bits / 8;
-
-    if(node_is(node, NType))
-        return this->sizeOf(this->isDeclared(static_cast<NType*>(node)->name));
-
-    if(node_is(node, NVariable))
-        return this->sizeOf(static_cast<NVariable*>(node)->type);
-
-    if(node_is(node, NStruct))
+    else if(node_is(node, NType))
+        return this->sizeOf(this->declaration(node));
+    else if(node_is(node, NIdentifier))
+        return this->sizeOf(static_cast<NIdentifier*>(node));
+    else if(node_is(node, NStruct))
         return this->sizeOf(static_cast<NStruct*>(node)->members);
-
-    if(node_is(node, NBlock))
+    else if(node_is(node, NBlock))
         return this->sizeOf(static_cast<NBlock*>(node)->statements);
+    else if(node_is(node, NVariable))
+        return this->sizeOf(static_cast<NVariable*>(node));
+    else if(node_is(node, NEnum))
+        return this->sizeOf(static_cast<NEnum*>(node)->type);
 
-    if(node_is(node, NIdentifier))
-    {
-        NIdentifier* nid = static_cast<NIdentifier*>(node);
-        Node* ndecl = this->isDeclared(nid);
-
-        if(ndecl)
-            return this->sizeOf(ndecl);
-
-        return this->sizeOf(this->variable(nid));
-    }
-
-    if(node_is(node, NEnum))
-    {
-        NEnum* nenum = static_cast<NEnum*>(node);
-
-        if(nenum->type)
-            return this->sizeOf(nenum->type);
-
-        return 4; // 32 Bit signed integer size
-    }
-
-    this->error("Cannot get size of type '" + node_typename(node) + "'");
-    return 0;
+    return this->sizeOf(this->interpret(node));
 }
 
-uint64_t VM::sizeOf(const NodeList &nodes)
+int64_t VM::sizeOf(NVariable *nvar)
 {
-    uint64_t size = 0;
+    if(nvar->size)
+    {
+        VMValuePtr vmsize = this->interpret(nvar->size);
 
-    for(auto it = nodes.begin(); it != nodes.end(); it++)
-        size += this->sizeOf(*it);
+        if(!this->isSizeValid(vmsize))
+            return 0;
 
-    return size;
+        return this->sizeOf(nvar->type) * vmsize->ui_value;
+    }
+
+    return this->sizeOf(nvar->type);
 }
 
-uint64_t VM::sizeOf(const VMValuePtr &vmvalue)
+int64_t VM::sizeOf(const VMValuePtr &vmvalue)
 {
     if(vmvalue->is_string())
         return (vmvalue->s_value.empty() ? 0 : vmvalue->s_value.size() - 1);
@@ -490,22 +892,16 @@ uint64_t VM::sizeOf(const VMValuePtr &vmvalue)
             return 0;
         }
 
-        if(node_is(vmvalue->value_typedef, NStruct))
-            return this->sizeOf(vmvalue->m_value.front()) * vmvalue->m_value.capacity();
-
-        return this->sizeOf(vmvalue->value_typedef) * vmvalue->m_value.capacity();
+        return this->sizeOf(vmvalue->m_value.front()) * vmvalue->m_value.capacity();
     }
 
-    if(node_is_compound(vmvalue->n_value))
+    if(node_is_compound(vmvalue->value_typedef))
     {
-        if(node_is(vmvalue->n_value, NStruct))
+        if(node_is(vmvalue->value_typedef, NStruct))
             return this->sizeOf(vmvalue->m_value);
 
-        return this->sizeOf(vmvalue->n_value);
-    }
-
-    if(vmvalue->value_typedef)
         return this->sizeOf(vmvalue->value_typedef);
+    }
 
     switch(vmvalue->value_type)
     {
@@ -536,52 +932,18 @@ uint64_t VM::sizeOf(const VMValuePtr &vmvalue)
     return 0;
 }
 
-uint64_t VM::sizeOf(const VMValueMembers &vmvmembers)
+int64_t VM::sizeOf(NIdentifier *nid)
 {
-    uint64_t size = 0;
+    Node* ndecl = this->isDeclared(nid);
 
-    for(auto it = vmvmembers.begin(); it != vmvmembers.end(); it++)
-        size += this->sizeOf(*it);
+    if(ndecl)
+        return this->sizeOf(ndecl);
 
-    return size;
+    return this->sizeOf(this->variable(nid));
 }
 
-bool VM::isVMFunction(NIdentifier *id) const
-{
-    return this->functions.find(id->value) != this->functions.cend();
-}
-
-void VM::call(NCall *ncall)
-{
-    if(this->isVMFunction(ncall->name))
-    {
-        this->callVM(ncall);
-        return;
-    }
-
-    Node* ndecl = this->declaration(ncall->name);
-
-    if(!ndecl)
-        return;
-
-    if(!node_is(ndecl, NFunction))
-    {
-        this->error("Trying to call a '" + node_typename(ndecl) + "' type");
-        return;
-    }
-
-    NFunction* nfunc = static_cast<NFunction*>(ndecl);
-
-    if(!this->checkArguments(nfunc, ncall) || !this->allocArguments(nfunc, ncall))
-        return;
-
-    nfunc->body->execute(this);
-    this->scopestack.pop_back();
-    this->state = VMState::NoState; // Reset VM's state
-}
-
-void VM::callVM(NCall *ncall)
+VMValuePtr VM::callVM(NCall *ncall)
 {
     VMFunction vmfunction = this->functions[ncall->name->value];
-    this->result = vmfunction(this, ncall);
+    return vmfunction(this, ncall);
 }

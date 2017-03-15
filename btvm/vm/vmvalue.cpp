@@ -1,93 +1,171 @@
 #include "vmvalue.h"
+#include "vm_functions.h"
 #include <cstring>
 
-VMValue VMValue::build(uint64_t bits, bool issigned, bool isfp)
-{
-    VMValue btv;
+#define return_math_op(op) \
+    if(is_floating_point()) \
+        return *value_ref<double>() op *rhs.value_ref<uint64_t>(); \
+    if(rhs.is_floating_point()) \
+        return *value_ref<uint64_t>() op *rhs.value_ref<double>(); \
+    return *value_ref<uint64_t>() op *rhs.value_ref<uint64_t>();
 
-    if(!isfp)
+#define return_cmp_op(op) \
+    if(is_signed() || rhs.is_signed()) \
+        return *value_ref<int64_t>() op *rhs.value_ref<int64_t>(); \
+    return *value_ref<uint64_t>() op *rhs.value_ref<uint64_t>();
+
+VMValue::VMValue()               : value_flags(VMValueFlags::None), value_type(VMValueType::Null),   value_typedef(NULL), s_value_ref(NULL), ui_value(0)     { }
+VMValue::VMValue(bool value)     : value_flags(VMValueFlags::None), value_type(VMValueType::Bool),   value_typedef(NULL), s_value_ref(NULL), ui_value(value) { }
+VMValue::VMValue(int64_t value)  : value_flags(VMValueFlags::None), value_type(VMValueType::s64),    value_typedef(NULL), s_value_ref(NULL), ui_value(value) { }
+VMValue::VMValue(uint64_t value) : value_flags(VMValueFlags::None), value_type(VMValueType::u64),    value_typedef(NULL), s_value_ref(NULL), ui_value(value) { }
+VMValue::VMValue(double value)   : value_flags(VMValueFlags::None), value_type(VMValueType::Double), value_typedef(NULL), s_value_ref(NULL), d_value(value)  { }
+
+VMValuePtr VMValue::allocate_type(VMValueType::VMType valuetype, Node *type) { return VMValue::allocate_type(valuetype, 0, type); }
+
+VMValuePtr VMValue::allocate_type(VMValueType::VMType valuetype, uint64_t size, Node *type)
+{
+    VMValuePtr vmvalue = std::make_shared<VMValue>();
+    vmvalue->value_type = valuetype;
+    vmvalue->value_typedef = type;
+
+    if(size > 0)
+        vmvalue->s_value.resize(size, 0);
+
+    return vmvalue;
+}
+
+VMValuePtr VMValue::allocate_literal(bool value, Node *type)
+{
+    VMValuePtr vmvalue = VMValue::allocate_type(VMValueType::Bool, type);
+    vmvalue->ui_value = value;
+    return vmvalue;
+}
+
+VMValuePtr VMValue::allocate_literal(int64_t value, Node *type)
+{
+    VMValuePtr vmvalue = VMValue::allocate_type(VMFunctions::integer_literal_type(value), type);
+    vmvalue->si_value = value;
+    return vmvalue;
+}
+
+VMValuePtr VMValue::allocate_literal(uint64_t value, Node *type)
+{
+    VMValuePtr vmvalue = VMValue::allocate_type(VMFunctions::integer_literal_type(value), type);
+    vmvalue->ui_value = value;
+    return vmvalue;
+}
+
+VMValuePtr VMValue::allocate_literal(double value, Node *type)
+{
+    VMValuePtr vmvalue = VMValue::allocate_type(VMValueType::Double, type);
+    vmvalue->d_value = value;
+    return vmvalue;
+}
+
+VMValuePtr VMValue::allocate_scalar(uint64_t bits, bool issigned, bool isfp, Node *type) { return VMValue::allocate_type(VMFunctions::scalar_type(bits, issigned, isfp), type); }
+VMValuePtr VMValue::allocate_boolean(Node *type) { return VMValue::allocate_type(VMValueType::Bool, 1, type); }
+VMValuePtr VMValue::allocate_string(uint64_t size, Node *type) { return VMValue::allocate_type(VMValueType::String, size + 1, type); }
+
+VMValuePtr VMValue::allocate_array(uint64_t size, Node *type)
+{
+    VMValuePtr vmvalue = VMValue::allocate_type(VMValueType::Array, type);
+    vmvalue->m_value.reserve(size);
+    return vmvalue;
+}
+
+VMValuePtr VMValue::allocate_string(const std::string &s, Node *type)
+{
+    VMValuePtr vmvalue = VMValue::allocate_string(s.size(), type);
+    std::copy(s.begin(), s.end(), vmvalue->s_value.begin());
+    return vmvalue;
+}
+
+VMValuePtr VMValue::copy_value(const VMValue &vmsrc) { return std::make_shared<VMValue>(vmsrc); }
+
+void VMValue::change_sign()
+{
+    if(value_type == VMValueType::u8)
+        value_type = VMValueType::s8;
+    else if(value_type == VMValueType::u16)
+        value_type = VMValueType::s16;
+    else if(value_type == VMValueType::u32)
+        value_type = VMValueType::s32;
+    else if(value_type == VMValueType::u64)
+        value_type = VMValueType::s64;
+    else if(value_type == VMValueType::s8)
+        value_type = VMValueType::u8;
+    else if(value_type == VMValueType::s16)
+        value_type = VMValueType::u16;
+    else if(value_type == VMValueType::s32)
+        value_type = VMValueType::u32;
+    else if(value_type == VMValueType::s64)
+        value_type = VMValueType::u64;
+}
+
+void VMValue::assign(const VMValue &rhs)
+{
+    if(is_floating_point())
+        *value_ref<double>() = rhs.d_value;
+    else if(is_integer())
     {
-        if(bits == 1)
-            btv.value_type = VMValueType::Bool;
-        else if(bits <= 8)
-            btv.value_type = issigned ? VMValueType::s8 : VMValueType::u8;
-        else if(bits <= 16)
-            btv.value_type = issigned ? VMValueType::s16 : VMValueType::u16;
-        else if(bits <= 32)
-            btv.value_type = issigned ? VMValueType::s32 : VMValueType::u32;
-        else if(bits <= 64)
-            btv.value_type = issigned ? VMValueType::s64 : VMValueType::u64;
+        if(is_signed())
+            *value_ref<int64_t>() = rhs.si_value;
+        else
+            *value_ref<uint64_t>() = rhs.ui_value;
     }
     else
-        btv.value_type = ((bits < 64) ? VMValueType::Float : VMValueType::Double);
-
-    return btv;
+    {
+        if(is_reference())
+            std::memcpy(s_value_ref, rhs.s_value.data(), rhs.s_value.size());
+        else
+            s_value = rhs.s_value;
+    }
 }
 
-VMValue VMValue::build_string(uint64_t size)
+VMValuePtr VMValue::create_reference(uint64_t offset, VMValueType::VMType valuetype) const
 {
-    return VMValue(VMString(size + 1, '\0'));
-}
-
-VMValue VMValue::build_string(const std::string &s)
-{
-    VMValue vmvalue = VMValue::build_string(s.size());
-    std::copy(s.begin(), s.end(), vmvalue.s_value.begin());
+    VMValuePtr vmvalue = std::make_shared<VMValue>();
+    vmvalue->value_flags = value_flags | VMValueFlags::Reference;
+    vmvalue->value_type = (valuetype != VMValueType::Null) ? valuetype : value_type;
+    vmvalue->value_typedef = value_typedef;
+    vmvalue->s_value_ref = const_cast<char*>(value_ref<char>()) + offset;
     return vmvalue;
 }
 
-VMValue VMValue::build_string_reference(VMValue *from, const VMValue &index)
+VMValuePtr VMValue::is_member(const std::string &member) const
 {
-    VMValue vmvalue;
-    vmvalue.value_flags = from->value_flags | VMValueFlags::StringReference;
-    vmvalue.value_type = VMValueType::s8;
-    vmvalue.cr_value = &from->s_value[index.ui_value];
-    return vmvalue;
-}
+    for(auto it = m_value.begin(); it != m_value.end(); it++)
+    {
+        if((*it)->value_id == member)
+            return *it;
+    }
 
-VMValue VMValue::build_default_integer()
-{
-    return VMValue::build(32, true, false);
-}
-
-VMValue VMValue::build_array(uint64_t size)
-{
-    VMValue vmvalue(VMValueType::Array);
-    vmvalue.m_value.reserve(size);
-    return vmvalue;
-}
-
-void VMValue::guess_size(bool issigned)
-{
-    if(ui_value <= 0xFF)
-        value_type = issigned ? VMValueType::s8 : VMValueType::u8;
-    else if(ui_value <= 0xFFFF)
-        value_type = issigned ? VMValueType::s16 : VMValueType::u16;
-    else if(ui_value <= 0xFFFFFFFF)
-        value_type = issigned ? VMValueType::s32 : VMValueType::u32;
-    else
-        value_type = issigned ? VMValueType::s64 : VMValueType::u64;
+    return NULL;
 }
 
 bool VMValue::is_const() const     { return (value_flags & VMValueFlags::Const); }
 bool VMValue::is_local() const     { return (value_flags & VMValueFlags::Local); }
-bool VMValue::is_reference() const { return (value_flags & VMValueFlags::StringReference); }
+bool VMValue::is_reference() const { return (value_flags & VMValueFlags::Reference); }
 
+bool VMValue::is_readable() const       { return (value_type >= VMValueType::String) || (value_type == VMValueType::Enum); }
 bool VMValue::is_null() const           { return (value_type == VMValueType::Null); }
 bool VMValue::is_string() const         { return (value_type == VMValueType::String); }
 bool VMValue::is_array() const          { return (value_type == VMValueType::Array); }
-bool VMValue::is_node() const           { return (value_type == VMValueType::Node); }
-bool VMValue::is_integer() const        { return (value_type >= VMValueType::Bool) && (value_type <= VMValueType::Double); }
+bool VMValue::is_enum() const           { return (value_type == VMValueType::Enum); }
+bool VMValue::is_union() const          { return (value_type == VMValueType::Union); }
+bool VMValue::is_struct() const         { return (value_type == VMValueType::Struct); }
+bool VMValue::is_compound() const       { return (value_type >= VMValueType::Enum) && (value_type <= VMValueType::Struct); }
+bool VMValue::is_integer() const        { return (value_type >= VMValueType::Bool) && (value_type <= VMValueType::s64); }
 bool VMValue::is_floating_point() const { return (value_type >= VMValueType::Float) && (value_type <= VMValueType::Double); }
 bool VMValue::is_scalar() const         { return is_integer() || is_floating_point(); }
 
 bool VMValue::is_negative() const
 {
     if(is_integer())
-        return si_value < 0;
+        return *value_ref<int64_t>() < 0;
 
     if(is_floating_point())
-        return d_value < 0;
+        return *value_ref<double>() < 0;
 
     return false;
 }
@@ -109,23 +187,16 @@ bool VMValue::is_signed() const
     return false;
 }
 
-std::shared_ptr<VMValue> VMValue::is_member(const std::string &member) const
-{
-    for(auto it = m_value.begin(); it != m_value.end(); it++)
-    {
-        if((*it)->value_id == member)
-            return *it;
-    }
-
-    return NULL;
-}
-
 std::string VMValue::type_name() const
 {
-    if(value_type == VMValueType::Void)
-        return "void";
-    else if(value_type == VMValueType::Node)
-        return "node";
+    if(value_type == VMValueType::Null)
+        return "null";
+    else if(value_type == VMValueType::Enum)
+        return "enum";
+    else if(value_type == VMValueType::Union)
+        return "union";
+    else if(value_type == VMValueType::Struct)
+        return "struct";
     else if(value_type == VMValueType::Array)
         return "array";
     else if(value_type == VMValueType::String)
@@ -156,33 +227,27 @@ std::string VMValue::type_name() const
     return "unknown";
 }
 
-const char *VMValue::to_string() const
+std::string VMValue::to_string() const
 {
-    if(!is_string())
-        throw std::runtime_error("Trying to converting a '" + type_name() + "' to 'string'");
+    if(is_integer())
+    {
+        if(is_signed())
+            return std::to_string(*value_ref<int64_t>());
 
-    return s_value.data();
-}
+        return std::to_string(*value_ref<uint64_t>());
+    }
+    else if(is_floating_point())
+        return std::to_string(*value_ref<double>());
+    else if(is_string())
+        return value_ref<char>();
 
-void VMValue::assign(const VMValue& rhs)
-{
-    if(is_reference())
-        *cr_value = static_cast<char>(rhs.si_value);
-
-    n_value = rhs.n_value;
-    m_value = rhs.m_value;
-    s_value = rhs.s_value;
-
-    if(rhs.is_signed())
-        si_value = rhs.si_value;
-    else
-        ui_value = rhs.ui_value;
+    throw std::runtime_error("Trying to converting a '" + type_name() + "' to string");
 }
 
 VMValue::operator bool() const
 {
     if(is_scalar())
-        return ui_value != 0;
+        return (*value_ref<uint64_t>() != 0);
 
     return false;
 }
@@ -190,202 +255,125 @@ VMValue::operator bool() const
 bool VMValue::operator ==(const VMValue& rhs) const
 {
     if(is_string())
-        return !std::strcmp(s_value.data(), rhs.s_value.data());
+        return !std::strcmp(value_ref<char>(), rhs.value_ref<char>());
 
-    return ui_value == rhs.ui_value;
+    return_cmp_op(==);
 }
 
 bool VMValue::operator !=(const VMValue& rhs) const
 {
     if(is_string())
-        return std::strcmp(s_value.data(), rhs.s_value.data());
+        return std::strcmp(value_ref<char>(), rhs.value_ref<char>());
 
-    return ui_value != rhs.ui_value;
+    return_cmp_op(!=);
 }
 
-bool VMValue::operator <=(const VMValue& rhs) const
-{
-    if(is_signed() || rhs.is_signed())
-        return si_value <= rhs.si_value;
-
-    return ui_value <= rhs.ui_value;
-}
-
-bool VMValue::operator >=(const VMValue& rhs) const
-{
-    if(is_signed() || rhs.is_signed())
-        return si_value >= rhs.si_value;
-
-    return ui_value >= rhs.ui_value;
-}
-
-bool VMValue::operator <(const VMValue& rhs) const
-{
-    if(is_signed() || rhs.is_signed())
-        return si_value < rhs.si_value;
-
-    return ui_value < rhs.ui_value;
-}
-
-bool VMValue::operator >(const VMValue& rhs) const
-{
-    if(is_signed() || rhs.is_signed())
-        return si_value > rhs.si_value;
-
-    return ui_value > rhs.ui_value;
-}
+bool VMValue::operator <=(const VMValue& rhs) const { return_cmp_op(<=); }
+bool VMValue::operator >=(const VMValue& rhs) const { return_cmp_op(>=); }
+bool VMValue::operator <(const VMValue& rhs)  const { return_cmp_op(<);  }
+bool VMValue::operator >(const VMValue& rhs)  const { return_cmp_op(>);  }
 
 VMValue& VMValue::operator ++()
 {
     if(is_floating_point())
-        d_value++;
+        (*value_ref<double>())++;
     else
-        si_value++;
+        (*value_ref<int64_t>())++;
 
     return *this;
 }
 
 VMValue VMValue::operator ++(int)
 {
-    VMValue btv = *this;
+    VMValue vmvalue = *this;
     ++*this;
-    return btv;
+    return vmvalue;
 }
 
 VMValue& VMValue::operator --()
 {
     if(is_floating_point())
-        d_value--;
+        (*value_ref<double>())--;
     else
-        si_value--;
+        (*value_ref<int64_t>())--;
 
     return *this;
 }
 
 VMValue VMValue::operator --(int)
 {
-    VMValue btv = *this;
+    VMValue vmvalue = *this;
     --*this;
-    return btv;
+    return vmvalue;
 }
 
-VMValue VMValue::operator !() const
-{
-    VMValue btv = *this;
-    btv.ui_value = !btv.ui_value;
-    return btv;
-}
+VMValue VMValue::operator !() const { return !(*value_ref<uint64_t>()); }
 
 VMValue VMValue::operator ~() const
 {
-    VMValue btv = *this;
-
     if((value_type == VMValueType::s8) || (value_type == VMValueType::u8))
-        btv.ui_value = ~static_cast<uint8_t>(btv.ui_value);
-    else if((value_type == VMValueType::s16) || (value_type == VMValueType::u16))
-        btv.ui_value = ~static_cast<uint16_t>(btv.ui_value);
-    else if((value_type == VMValueType::s32) || (value_type == VMValueType::u32))
-        btv.ui_value = ~static_cast<uint32_t>(btv.ui_value);
-    else
-        btv.ui_value = ~btv.ui_value;
+        return static_cast<uint64_t>(~(*value_ref<uint8_t>()));
 
-    return btv;
+    if((value_type == VMValueType::s16) || (value_type == VMValueType::u16))
+        return static_cast<uint64_t>(~(*value_ref<uint16_t>()));
+
+    if((value_type == VMValueType::s32) || (value_type == VMValueType::u32))
+         return static_cast<uint64_t>(~(*value_ref<uint32_t>()));
+
+    return ~(*value_ref<uint64_t>());
+}
+
+VMValue VMValue::operator -() const
+{
+    if(!is_integer())
+        throw std::runtime_error("Trying to change sign in a '" + type_name());
+
+    VMValue vmvalue = *this;
+    vmvalue.si_value = -vmvalue.si_value;
+    vmvalue.change_sign();
+    return vmvalue;
 }
 
 VMValue VMValue::operator +(const VMValue& rhs) const
 {
     if(is_string())
     {
-        VMString vms;
-        vms.reserve(s_value.size() + rhs.s_value.size());
-        vms.insert(vms.end(), s_value.begin(), s_value.end());
-        vms.insert(vms.end(), rhs.s_value.begin(), rhs.s_value.end());
-        return VMValue(vms);
+        VMValue vmvalue;
+        vmvalue.s_value.resize(s_value.size() + rhs.s_value.size());
+        vmvalue.s_value.insert(vmvalue.s_value.end(), s_value.begin(), s_value.end());
+        vmvalue.s_value.insert(vmvalue.s_value.end(), rhs.s_value.begin(), rhs.s_value.end());
+        return vmvalue;
     }
 
-    if(is_floating_point())
-        return VMValue(d_value + rhs.ui_value);
-    else if(rhs.is_floating_point())
-        return VMValue(si_value + rhs.d_value);
-
-    return VMValue(ui_value + rhs.ui_value);
+    return_math_op(+);
 }
 
-VMValue VMValue::operator -(const VMValue& rhs) const
-{
-    if(is_floating_point())
-        return VMValue(d_value - rhs.si_value);
-    else if(rhs.is_floating_point())
-        return VMValue(si_value - rhs.d_value);
+VMValue VMValue::operator -(const VMValue& rhs) const { return_math_op(-) }
+VMValue VMValue::operator *(const VMValue& rhs) const { return_math_op(*); }
+VMValue VMValue::operator /(const VMValue& rhs) const { return_math_op(/); }
 
-    return VMValue(si_value - rhs.si_value);
-}
+VMValue VMValue::operator %(const VMValue& rhs)  const { return *value_ref<int64_t>()  %  *rhs.value_ref<int64_t>();  }
+VMValue VMValue::operator &(const VMValue& rhs)  const { return *value_ref<uint64_t>() &  *rhs.value_ref<uint64_t>(); }
+VMValue VMValue::operator |(const VMValue& rhs)  const { return *value_ref<uint64_t>() |  *rhs.value_ref<uint64_t>(); }
+VMValue VMValue::operator ^(const VMValue& rhs)  const { return *value_ref<uint64_t>() ^  *rhs.value_ref<uint64_t>(); }
+VMValue VMValue::operator <<(const VMValue& rhs) const { return *value_ref<uint64_t>() << *rhs.value_ref<uint64_t>(); }
+VMValue VMValue::operator >>(const VMValue& rhs) const { return *value_ref<uint64_t>() >> *rhs.value_ref<uint64_t>(); }
 
-VMValue VMValue::operator *(const VMValue& rhs) const
-{
-    if(is_floating_point())
-        return VMValue(d_value * rhs.si_value);
-    else if(rhs.is_floating_point())
-        return VMValue(si_value * rhs.d_value);
-
-    return VMValue(si_value * rhs.si_value);
-}
-
-VMValue VMValue::operator /(const VMValue& rhs) const
-{
-    if(is_floating_point())
-        return VMValue(d_value / rhs.si_value);
-    else if(rhs.is_floating_point())
-        return VMValue(si_value / rhs.d_value);
-
-    return VMValue(si_value / rhs.si_value);
-}
-
-VMValue VMValue::operator %(const VMValue& rhs) const
-{
-    return VMValue(si_value % rhs.si_value);
-}
-
-VMValue VMValue::operator &(const VMValue& rhs) const
-{
-    return VMValue(ui_value & rhs.ui_value);
-}
-
-VMValue VMValue::operator |(const VMValue& rhs) const
-{
-    return VMValue(ui_value | rhs.ui_value);
-}
-
-VMValue VMValue::operator ^(const VMValue& rhs) const
-{
-    return VMValue(ui_value ^ rhs.ui_value);
-}
-
-VMValue VMValue::operator <<(const VMValue& rhs) const
-{
-    return VMValue(ui_value << rhs.ui_value);
-}
-
-VMValue VMValue::operator >>(const VMValue& rhs) const
-{
-    return VMValue(ui_value >> rhs.ui_value);
-}
-
-std::shared_ptr<VMValue> VMValue::operator[](const VMValue& index)
+VMValuePtr VMValue::operator[](const VMValue &index) const
 {
     if(is_string())
-        return std::make_shared<VMValue>(VMValue::build_string_reference(this, index));
+        return VMValue::create_reference(index.ui_value, VMValueType::s8);
 
     return m_value[index.ui_value];
 }
 
-std::shared_ptr<VMValue> VMValue::operator[](const std::string &member)
+VMValuePtr VMValue::operator[](const std::string &member) const
 {
-    for(auto it = m_value.begin(); it != m_value.end(); it++)
+    for(auto it = m_value.cbegin(); it != m_value.cend(); it++)
     {
         if((*it)->value_id == member)
             return *it;
     }
 
-    return std::shared_ptr<VMValue>();
+    return VMValuePtr();
 }

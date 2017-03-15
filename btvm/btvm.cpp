@@ -76,16 +76,14 @@ void BTVM::print(const string &s)
     cout << s;
 }
 
-void BTVM::onAllocating(const VMValuePtr &vmvalue)
+void BTVM::readValue(const VMValuePtr& vmvar, uint64_t size)
 {
-    if(vmvalue->is_const() || vmvalue->is_local())
-        return;
+    this->_btvmio->read(vmvar, size);
+}
 
-    if((!vmvalue->is_node() && !vmvalue->is_array()) || node_is(vmvalue->n_value, NEnum))
-        this->_btvmio->read(vmvalue, this->sizeOf(vmvalue)); // Read value from file
-
-    if(this->declarationstack.empty())
-        this->_allocations.push_back(vmvalue);
+void BTVM::processFormat(const VMValuePtr &vmvar)
+{
+    this->_allocations.push_back(vmvar);
 }
 
 BTEntryPtr BTVM::buildEntry(const VMValuePtr &vmvalue, const BTEntryPtr& btparent, uint64_t& offset)
@@ -107,7 +105,7 @@ BTEntryPtr BTVM::buildEntry(const VMValuePtr &vmvalue, const BTEntryPtr& btparen
     else if(btparent)
         btentry->forecolor = btparent->forecolor;
 
-    if(vmvalue->is_array() || node_is(vmvalue->n_value, NStruct))
+    if(vmvalue->is_array() || node_is(vmvalue->value_typedef, NStruct))
     {
         for(auto it = vmvalue->m_value.begin(); it != vmvalue->m_value.end(); it++)
             btentry->children.push_back(this->buildEntry(*it, btentry, offset));
@@ -173,13 +171,13 @@ void BTVM::initColors()
 
 VMValuePtr BTVM::vmPrintf(VM *self, NCall *ncall)
 {
-    VMValuePtr format = ncall->arguments.front()->execute(self);
+    VMValuePtr format = self->interpret(ncall->arguments.front());
     VMFunctions::ValueList args;
 
     if(ncall->arguments.size() > 1)
     {
         for(auto it = ncall->arguments.begin() + 1; it != ncall->arguments.end(); it++)
-            args.push_back((*it)->execute(self));
+            args.push_back(self->interpret(*it));
     }
 
     static_cast<BTVM*>(self)->print(VMFunctions::format_string(format, args));
@@ -245,7 +243,7 @@ VMValuePtr BTVM::vmCeil(VM *self, NCall *ncall)
     if(ncall->arguments.size() != 1)
         return self->argumentError(ncall, 1);
 
-    VMValuePtr vmvalue = std::make_shared<VMValue>(*ncall->arguments.front()->execute(self));
+    VMValuePtr vmvalue = VMValue::copy_value(*self->interpret(ncall->arguments.front()));
 
     if(!vmvalue->is_scalar())
         return self->typeError(vmvalue, "scalar");
@@ -265,7 +263,7 @@ VMValuePtr BTVM::vmBtvmTest(VM *self, NCall *ncall)
     if(ncall->arguments.size() != 1)
         return self->argumentError(ncall, 1);
 
-    VMValuePtr testres = ncall->arguments.front()->execute(self);
+    VMValuePtr testres = self->interpret(ncall->arguments.front());
 
     if(*testres)
         cout << ColorizeOk("OK") << endl;
@@ -281,7 +279,7 @@ VMValuePtr BTVM::vmFEof(VM *self, NCall *ncall)
         return self->argumentError(ncall, 0);
 
     BTVM* btvm = static_cast<BTVM*>(self);
-    return std::make_shared<VMValue>(btvm->_btvmio->atEof());
+    return VMValue::allocate_literal(btvm->_btvmio->atEof());
 }
 
 VMValuePtr BTVM::vmFileSize(VM *self, NCall *ncall)
@@ -289,7 +287,8 @@ VMValuePtr BTVM::vmFileSize(VM *self, NCall *ncall)
     if(ncall->arguments.size() != 0)
         return self->argumentError(ncall, 0);
 
-    return std::make_shared<VMValue>(static_cast<BTVM*>(self)->_btvmio->size());
+    BTVM* btvm = static_cast<BTVM*>(self);
+    return VMValue::allocate_literal(btvm->_btvmio->size());
 }
 
 VMValuePtr BTVM::vmFTell(VM *self, NCall *ncall)
@@ -297,7 +296,8 @@ VMValuePtr BTVM::vmFTell(VM *self, NCall *ncall)
     if(ncall->arguments.size() != 0)
         return self->argumentError(ncall, 0);
 
-    return std::make_shared<VMValue>(static_cast<BTVM*>(self)->_btvmio->offset());
+    BTVM* btvm = static_cast<BTVM*>(self);
+    return VMValue::allocate_literal(btvm->_btvmio->offset());
 }
 
 VMValuePtr BTVM::vmReadBytes(VM *self, NCall *ncall)
@@ -307,17 +307,17 @@ VMValuePtr BTVM::vmReadBytes(VM *self, NCall *ncall)
 
     BTVM* btvm = static_cast<BTVM*>(self);
 
-    VMValuePtr vmdest = ncall->arguments[0]->execute(self);
+    VMValuePtr vmdest = self->interpret(ncall->arguments[0]);
 
     if(!vmdest->is_array() && !vmdest->is_string())
         return self->typeError(vmdest, "array or string");
 
-    VMValuePtr offset = ncall->arguments[1]->execute(self);
+    VMValuePtr offset = self->interpret(ncall->arguments[1]);
 
     if(!offset->is_scalar())
         return self->typeError(offset, "scalar");
 
-    VMValuePtr size = ncall->arguments[2]->execute(self);
+    VMValuePtr size = self->interpret(ncall->arguments[2]);
 
     if(!size->is_scalar())
         return self->typeError(size, "scalar");
@@ -341,7 +341,7 @@ VMValuePtr BTVM::vmReadUInt(VM *self, NCall *ncall)
 
     if(ncall->arguments.size() == 1)
     {
-        pos = ncall->arguments.front()->execute(btvm);
+        pos = self->interpret(ncall->arguments.front());
 
         if(!pos->is_scalar())
             return self->typeError(pos, "scalar");
@@ -349,7 +349,7 @@ VMValuePtr BTVM::vmReadUInt(VM *self, NCall *ncall)
         btvm->_btvmio->seek(pos->ui_value);
     }
 
-    VMValuePtr vmvalue = std::make_shared<VMValue>(VMValue::build(32, false, false));
+    VMValuePtr vmvalue = VMValue::allocate_scalar(32, false, false);
     btvm->_btvmio->read(vmvalue, btvm->sizeOf(vmvalue));
     return vmvalue;
 }
