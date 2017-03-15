@@ -3,7 +3,7 @@
 // --------------------------------------
 
 enum UntypedEnum        { ZERO, ONE, TWO, THREE, TEN = 10, ELEVEN };
-enum <ushort> TypedEnum { ZERO, ONE, TWO, THREE, TEN = 10, ELEVEN };
+enum <ushort> TypedEnum { ZERO_T, ONE_T, TWO_T, THREE_T, TEN_T = 10, ELEVEN_T };
 
 int sum(int a, int b) { return a + b; }
 int pow(int val) { return val * val; }
@@ -104,12 +104,12 @@ void test_typed_enum()
 
     local TypedEnum tenum;
 
-    __btvm_test__((tenum.ZERO   == 0)  &&
-                  (tenum.ONE    == 1)  &&
-                  (tenum.TWO    == 2)  &&
-                  (tenum.THREE  == 3)  &&
-                  (tenum.TEN    == 10) &&
-                  (tenum.ELEVEN == 11));
+    __btvm_test__((tenum.ZERO_T   == 0)  &&
+                  (tenum.ONE_T    == 1)  &&
+                  (tenum.TWO_T    == 2)  &&
+                  (tenum.THREE_T  == 3)  &&
+                  (tenum.TEN_T    == 10) &&
+                  (tenum.ELEVEN_T == 11));
 
     Printf("Typed enum size [type]...");
     __btvm_test__(sizeof(TypedEnum) == 2);
