@@ -6,6 +6,8 @@
 #include "vmvalue.h"
 #include "ast.h"
 
+#define BITS 8
+
 enum VMState { NoState = 0,
                Error,
                Break, Continue, Return };
@@ -50,6 +52,7 @@ VMValueType::VMType value_type(Node *node);
 bool is_type_compatible(const VMValuePtr& vmvalue1, const VMValuePtr& vmvalue2);
 bool type_cast(const VMValuePtr& vmvalue, Node *node);
 void change_sign(const VMValuePtr& vmvalue);
+
 }
 
 #endif // BTVM_FUNCTIONS_H

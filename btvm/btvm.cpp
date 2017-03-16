@@ -179,6 +179,8 @@ VMValuePtr BTVM::vmPrintf(VM *self, NCall *ncall)
         for(auto it = ncall->arguments.begin() + 1; it != ncall->arguments.end(); it++)
             args.push_back(self->interpret(*it));
     }
+    else
+        return self->error("Expected at least 2 arguments, " + std::to_string(ncall->arguments.size()) + " given");
 
     static_cast<BTVM*>(self)->print(VMFunctions::format_string(format, args));
     return VMValuePtr();

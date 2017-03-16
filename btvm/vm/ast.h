@@ -18,8 +18,8 @@ struct delete_node { template<typename T> void operator()(T t) { delete t; } };
 #define delete_nodelist(n)  std::for_each(n.begin(), n.end(), delete_node())
 #define delete_if(n)        if(n) delete n
 
-#define anonymous_type_prefix        "__anonymous_type_"
-#define anonymous_identifier         (new NIdentifier(anonymous_type_prefix + std::to_string(__id__) + "__"))
+#define anonymous_type_prefix        "__anonymous_decl__"
+#define anonymous_identifier         (new NIdentifier(anonymous_type_prefix + std::to_string(global_id++) + "__"))
 #define is_anonymous_identifier(sid) (sid.find(anonymous_type_prefix) == 0)
 
 #define node_s_typename(n) #n
@@ -30,13 +30,11 @@ struct delete_node { template<typename T> void operator()(T t) { delete t; } };
 
 struct Node
 {
-    Node() { __id__ = global_id++; }
+    Node() { }
     virtual ~Node() { }
     virtual std::string __type__() const = 0;
 
-    unsigned long long __id__;
-
-    private:
+    protected:
         static unsigned long long global_id;
 };
 
@@ -243,7 +241,9 @@ struct NVariable: public Node
 {
     AST_NODE(NVariable)
 
-    NVariable(NIdentifier* name, Node* size): Node(), type(NULL), name(name), value(NULL), size(size), is_const(false), is_local(false) { }
+    NVariable(Node* bits): Node(), type(NULL), name(anonymous_identifier), value(NULL), size(NULL), bits(bits), is_const(false), is_local(false) { }
+    NVariable(NIdentifier* name, Node* size): Node(), type(NULL), name(name), value(NULL), size(size), bits(NULL), is_const(false), is_local(false) { }
+    NVariable(NIdentifier* name, Node* size, Node* bits): Node(), type(NULL), name(name), value(NULL), size(size), bits(bits), is_const(false), is_local(false) { }
     virtual ~NVariable() { delete type; delete name; delete_if(value); delete size; }
 
     Node* type;
@@ -252,6 +252,7 @@ struct NVariable: public Node
     NodeList custom_vars;
     Node* value;
     Node* size;
+    Node* bits;
     bool is_const;
     bool is_local;
 };

@@ -103,7 +103,9 @@ var_decl(A)           ::=         id(B)         var_no_assign(C) var_list_no_ass
 var(A)                ::= id(B) array(C).                 { A = new NVariable(B, C); }
 var(A)                ::= id(B) array(C) ASSIGN op_if(D). { A = new NVariable(B, C); A->value = D; }
 
-var_no_assign(A)      ::= id(B) array(C).                 { A = new NVariable(B, C); }
+var_no_assign(A)      ::= id(B) array(C).        { A = new NVariable(B, C); }
+var_no_assign(A)      ::= id(B) COLON number(C). { A = new NVariable(B, NULL, C); }
+var_no_assign(A)      ::= COLON number(C).       { A = new NVariable(C); }
 
 array(A)              ::= O_SQUARE expr(B) C_SQUARE. { A = new NBlock(*B); delete B; }
 array(A)              ::= O_SQUARE         C_SQUARE. { A = new NBlock(); }

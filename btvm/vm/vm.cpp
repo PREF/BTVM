@@ -1,5 +1,4 @@
 #include "vm.h"
-#include "vm_functions.h"
 #include <iostream>
 
 using namespace std;
@@ -569,6 +568,9 @@ VMValuePtr VM::allocVariable(NVariable *nvar)
     VMValuePtr vmvar = this->allocType(nvar->type, this->arraySize(nvar));
     vmvar->value_id = nvar->name->value;
 
+    if(nvar->bits)
+        vmvar->value_bits = *this->interpret(nvar->bits)->value_ref<int64_t>();
+
     if(nvar->is_const)
         vmvar->value_flags |= VMValueFlags::Const;
 
@@ -740,6 +742,24 @@ VM::VMCaseMap VM::buildCaseMap(NSwitch *nswitch)
     return casemap;
 }
 
+int64_t VM::getBits(const VMValuePtr &vmvalue)
+{
+    return vmvalue->value_bits;
+}
+
+int64_t VM::getBits(Node *n)
+{
+    if(!node_is(n, NVariable))
+        throw std::runtime_error("Cannot get bit size from '" + node_typename(n) + "'");
+
+    NVariable* nvar = static_cast<NVariable*>(n);
+
+    if(nvar->bits)
+        return *this->interpret(nvar->bits)->value_ref<int64_t>();
+
+    return -1;
+}
+
 VMValuePtr VM::call(NCall *ncall)
 {
     if(this->isVMFunction(ncall->name))
@@ -847,19 +867,19 @@ Node *VM::arraySize(NVariable *nvar)
 int64_t VM::sizeOf(Node *node)
 {
     if(node_inherits(node, NBasicType))
-        return static_cast<NBasicType*>(node)->bits / 8;
+        return static_cast<NBasicType*>(node)->bits / BITS;
     else if(node_is(node, NType))
         return this->sizeOf(this->declaration(node));
     else if(node_is(node, NIdentifier))
         return this->sizeOf(static_cast<NIdentifier*>(node));
-    else if(node_is(node, NStruct))
-        return this->sizeOf(static_cast<NStruct*>(node)->members);
-    else if(node_is(node, NBlock))
-        return this->sizeOf(static_cast<NBlock*>(node)->statements);
     else if(node_is(node, NVariable))
         return this->sizeOf(static_cast<NVariable*>(node));
     else if(node_is(node, NEnum))
         return this->sizeOf(static_cast<NEnum*>(node)->type);
+    else if(node_is(node, NBlock))
+        return this->sizeOf(static_cast<NBlock*>(node)->statements);
+    else if(node_is(node, NStruct))
+        return this->compoundSize(static_cast<NStruct*>(node)->members);
 
     return this->sizeOf(this->interpret(node));
 }
@@ -898,7 +918,7 @@ int64_t VM::sizeOf(const VMValuePtr &vmvalue)
     if(node_is_compound(vmvalue->value_typedef))
     {
         if(node_is(vmvalue->value_typedef, NStruct))
-            return this->sizeOf(vmvalue->m_value);
+            return this->compoundSize(vmvalue->m_value);
 
         return this->sizeOf(vmvalue->value_typedef);
     }
@@ -940,6 +960,47 @@ int64_t VM::sizeOf(NIdentifier *nid)
         return this->sizeOf(ndecl);
 
     return this->sizeOf(this->variable(nid));
+}
+
+int64_t VM::sizeOf(NStruct *nstruct)
+{
+    uint64_t totbits = 0, bftotsize = 0, boundarybits = 0;
+
+    for(auto it = nstruct->members.begin(); it != nstruct->members.end(); it++)
+    {
+        if(node_is(*it, NVariable))
+        {
+            NVariable* nvar = static_cast<NVariable*>(*it);
+            uint64_t varsize = this->sizeOf(*it) * BITS;
+            boundarybits = std::max(varsize, boundarybits);
+
+            if(!nvar->bits)
+            {
+                totbits += varsize;
+
+                if(bftotsize)
+                    totbits += (boundarybits - bftotsize);
+
+                bftotsize = 0;
+            }
+            else
+            {
+                uint64_t bfsize = *this->interpret(nvar->bits)->value_ref<uint64_t>();
+                totbits += bfsize;
+                bftotsize += bfsize;
+            }
+
+            continue;
+        }
+
+        totbits += this->sizeOf(*it) * BITS;
+    }
+
+    if(bftotsize)
+        totbits += (boundarybits - bftotsize);
+
+    int64_t sz = totbits / BITS;
+    return sz;
 }
 
 VMValuePtr VM::callVM(NCall *ncall)

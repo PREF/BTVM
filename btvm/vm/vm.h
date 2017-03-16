@@ -7,6 +7,7 @@
 #include <deque>
 #include <list>
 #include "ast.h"
+#include "vm_functions.h"
 
 #define VMUnused(x) (void)x
 #define ScopeContext(x) VM::VMScopeContext __scope__(x)
@@ -83,6 +84,8 @@ class VM
         bool isVMFunction(NIdentifier* id) const;
         bool pushScope(NFunction* nfunc, NCall* ncall);
         VMCaseMap buildCaseMap(NSwitch* nswitch);
+        int64_t getBits(const VMValuePtr& vmvalue);
+        int64_t getBits(Node *n);
         std::string readFile(const std::string& file) const;
         void writeFile(const std::string& file, const std::string& data) const;
         void readValue(const VMValuePtr& vmvar);
@@ -99,11 +102,13 @@ class VM
         virtual void processFormat(const VMValuePtr& vmvar) = 0;
         int64_t sizeOf(const VMValuePtr& vmvalue);
         int64_t sizeOf(NIdentifier* nid);
+        int64_t sizeOf(NStruct* nstruct);
         int64_t sizeOf(NVariable* nvar);
         int64_t sizeOf(Node* node);
 
-    protected:
+    private:
         template<typename T> T symbol(NIdentifier* nid, std::function<T(const VMScope&, NIdentifier*)> cb) const;
+        template<typename T> int64_t compoundSize(const std::vector<T> &v);
         template<typename T> int64_t sizeOf(const std::vector<T> &v);
 
     private:
@@ -133,6 +138,37 @@ template<typename T> T VM::symbol(NIdentifier *nid, std::function<T(const VMScop
     }
 
     return cb(this->_globalscope, nid); // Try globals
+}
+
+template<typename T> int64_t VM::compoundSize(const std::vector<T> &v)
+{
+    uint64_t totbits = 0, bftotsize = 0, boundarybits = 0;
+
+    for(auto it = v.begin(); it != v.end(); it++)
+    {
+        uint64_t mbits = this->sizeOf(*it) * BITS;
+        boundarybits = std::max(mbits, boundarybits);
+        int64_t bits = this->getBits(*it);
+
+        if(bits > 0) // TODO: Handle bits == 0
+        {
+            totbits += bits;
+            bftotsize += bits;
+            continue;
+        }
+
+        totbits += mbits;
+
+        if(bftotsize)
+            totbits += (boundarybits - bftotsize);
+
+        bftotsize = 0;
+    }
+
+    if(bftotsize)
+        totbits += (boundarybits - bftotsize);
+
+    return totbits / BITS;
 }
 
 template<typename T> int64_t VM::sizeOf(const std::vector<T> &v)

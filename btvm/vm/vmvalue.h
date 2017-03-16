@@ -114,6 +114,7 @@ struct VMValue
     VMValueType::VMType  value_type;
     Node*                value_typedef;
     std::string          value_id;
+    int64_t              value_bits;
 
     VMValueMembers       m_value;
     VMString             s_value;

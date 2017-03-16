@@ -2,6 +2,7 @@
 #define BTVMIO_H
 
 #include "../vm/vmvalue.h"
+#include "../vm/vm_functions.h"
 #include "../format/btentry.h"
 
 #define IO_NoSeek(btvmio) BTVMIO::NoSeek __noseek__(btvmio)
@@ -47,7 +48,6 @@ class BTVMIO
 
 template<typename T> T BTVMIO::cpuEndianness(T value) const
 {
-    static size_t BITS = 8;
     T cpuvalue = 0;
 
     if(this->_endianness == BTEndianness::LittleEndian) // CPU -> LE

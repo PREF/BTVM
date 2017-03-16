@@ -82,6 +82,9 @@ string dump_ast(Node *n)
 
         if(is_attribute_valid(n, NVariable, value))
             dump_node_attribute(n, NVariable, value);
+
+        if(is_attribute_valid(n, NVariable, bits))
+            dump_node_attribute(n, NVariable, bits);
     }
     else if(node_is(n, NFunction))
     {
