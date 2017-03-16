@@ -6,7 +6,7 @@
 #include <string>
 #include <deque>
 #include <list>
-#include "ast/ast.h"
+#include "ast.h"
 
 #define VMUnused(x) (void)x
 #define ScopeContext(x) VM::VMScopeContext __scope__(x)

@@ -1,5 +1,5 @@
 #include "ast.h"
-#include "../vm_functions.h"
+#include "vm_functions.h"
 
 using namespace std;
 

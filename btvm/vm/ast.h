@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
-#include "../vmvalue.h"
+#include "vmvalue.h"
 
 class VM;
 struct Node;

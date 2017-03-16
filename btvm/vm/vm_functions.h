@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 #include "vmvalue.h"
-#include "ast/ast.h"
+#include "ast.h"
 
 enum VMState { NoState = 0,
                Error,

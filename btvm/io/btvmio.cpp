@@ -1,5 +1,5 @@
 #include "btvmio.h"
-#include "../vm/ast/ast.h"
+#include "../vm/ast.h"
 #include <cstring>
 
 BTVMIO::BTVMIO(): _endianness(BTEndianness::PlatformEndian)
