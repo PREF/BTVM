@@ -138,7 +138,7 @@ custom_vars(A)        ::= custom_vars COMMA custom_var(B). { A->push_back(B); }
 custom_vars(A)        ::= custom_var(B).                   { A = new NodeList(); A->push_back(B); }
 
 custom_var(A)         ::= IDENTIFIER(B) ASSIGN id(C).      { A = new NCustomVariable(B->value, C); }
-custom_var(A)         ::= IDENTIFIER(B) ASSIGN boolean(C). { A = new NCustomVariable(B->value, C); }
+custom_var(A)         ::= IDENTIFIER(B) ASSIGN literal(C). { A = new NCustomVariable(B->value, C); }
 
 type(A)               ::= sign(B) scalar(C).                                        { if(B != -1) C->is_signed = B; A = C; }
 type(A)               ::= sign character(B).                                        { A = B; }
@@ -307,13 +307,15 @@ op_pointer(A)         ::= value(B).                                { A = B; }
 // =======================================================
 //                  Basic Declarations
 // =======================================================
-value(A)              ::= LITERAL_STRING(B).             { A = new NString(B->value); }
 value(A)              ::= O_ROUND expr(B) C_ROUND.       { A = new NBlock(*B); delete B; }
-value(A)              ::= boolean(B).                    { A = B; }
-value(A)              ::= number(B).                     { A = B; }
 value(A)              ::= id(B) O_ROUND expr(C) C_ROUND. { A = new NCall(B, *C); delete C; }
 value(A)              ::= id(B) O_ROUND C_ROUND.         { A = new NCall(B); }
 value(A)              ::= id(B).                         { A = B; }
+value(A)              ::= literal(B).                    { A = B; }
+
+literal(A)            ::= LITERAL_STRING(B). { A = new NString(B->value); }
+literal(A)            ::= boolean(B).        { A = B; }
+literal(A)            ::= number(B).         { A = B; }
 
 number(A)             ::= LITERAL_OCT(B).  { A = new NInteger(VMFunctions::string_to_number(B->value, 8)); }
 number(A)             ::= LITERAL_DEC(B).  { A = new NInteger(VMFunctions::string_to_number(B->value, 10)); }
