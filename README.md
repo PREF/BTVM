@@ -2,14 +2,15 @@
 C++11 implementation of 010 Editor's template language
 
 ## Status
-BTVM is in early state, lexing and parsing works on simple scripts (BMP and WAV format), more testing is required.
-A detailed wiki page about BTVM's status will be available soon
+BTVM is in early state, lexing and parsing works on some scripts:
+* BMP Format
+* WAV Format
+* ZIP Format
 
-## Requirements
-re2c and lemon parser generator are required in order to compile BTVM
+A detailed wiki page about BTVM's status will be available soon.
 
 ## Build
-The only required step is to generate a lexer and parser with re2c and lemon and to include generated files in your project
+If order to autogenerate the Lexer (bt_lexer.\*) and Parser (bt_parser.\*), it's sufficient to run "make" inside "generator" folder (lemon and re2c needs to be installed):
 
 ```
 cd generator
