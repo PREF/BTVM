@@ -9,7 +9,6 @@
 #include "ast.h"
 #include "vm_functions.h"
 
-#define VMUnused(x) (void)x
 #define ScopeContext(x) VM::VMScopeContext __scope__(x)
 
 class VM
@@ -146,7 +145,7 @@ template<typename T> int64_t VM::compoundSize(const std::vector<T> &v)
 
     for(auto it = v.begin(); it != v.end(); it++)
     {
-        uint64_t mbits = this->sizeOf(*it) * BITS;
+        uint64_t mbits = this->sizeOf(*it) * PLATFORM_BITS;
         boundarybits = std::max(mbits, boundarybits);
         int64_t bits = this->getBits(*it);
 
@@ -168,7 +167,7 @@ template<typename T> int64_t VM::compoundSize(const std::vector<T> &v)
     if(bftotsize)
         totbits += (boundarybits - bftotsize);
 
-    return totbits / BITS;
+    return totbits / PLATFORM_BITS;
 }
 
 template<typename T> int64_t VM::sizeOf(const std::vector<T> &v)

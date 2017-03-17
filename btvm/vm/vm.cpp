@@ -867,7 +867,7 @@ Node *VM::arraySize(NVariable *nvar)
 int64_t VM::sizeOf(Node *node)
 {
     if(node_inherits(node, NBasicType))
-        return static_cast<NBasicType*>(node)->bits / BITS;
+        return static_cast<NBasicType*>(node)->bits / PLATFORM_BITS;
     else if(node_is(node, NType))
         return this->sizeOf(this->declaration(node));
     else if(node_is(node, NIdentifier))
@@ -971,7 +971,7 @@ int64_t VM::sizeOf(NStruct *nstruct)
         if(node_is(*it, NVariable))
         {
             NVariable* nvar = static_cast<NVariable*>(*it);
-            uint64_t varsize = this->sizeOf(*it) * BITS;
+            uint64_t varsize = this->sizeOf(*it) * PLATFORM_BITS;
             boundarybits = std::max(varsize, boundarybits);
 
             if(!nvar->bits)
@@ -993,13 +993,13 @@ int64_t VM::sizeOf(NStruct *nstruct)
             continue;
         }
 
-        totbits += this->sizeOf(*it) * BITS;
+        totbits += this->sizeOf(*it) * PLATFORM_BITS;
     }
 
     if(bftotsize)
         totbits += (boundarybits - bftotsize);
 
-    int64_t sz = totbits / BITS;
+    int64_t sz = totbits / PLATFORM_BITS;
     return sz;
 }
 

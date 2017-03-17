@@ -64,6 +64,7 @@ struct VMValue
     bool is_readable() const;
     bool is_null() const;
     bool is_string() const;
+    bool is_boolean() const;
     bool is_array() const;
     bool is_enum() const;
     bool is_union() const;

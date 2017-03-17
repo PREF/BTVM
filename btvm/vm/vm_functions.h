@@ -6,7 +6,8 @@
 #include "vmvalue.h"
 #include "ast.h"
 
-#define BITS 8
+#define VMUnused(x) (void)x
+#define PLATFORM_BITS 8
 
 enum VMState { NoState = 0,
                Error,

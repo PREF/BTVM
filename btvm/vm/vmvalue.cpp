@@ -150,6 +150,7 @@ bool VMValue::is_reference() const { return (value_flags & VMValueFlags::Referen
 bool VMValue::is_readable() const       { return (value_type >= VMValueType::String) || (value_type == VMValueType::Enum); }
 bool VMValue::is_null() const           { return (value_type == VMValueType::Null); }
 bool VMValue::is_string() const         { return (value_type == VMValueType::String); }
+bool VMValue::is_boolean() const        { return (value_type == VMValueType::Bool); }
 bool VMValue::is_array() const          { return (value_type == VMValueType::Array); }
 bool VMValue::is_enum() const           { return (value_type == VMValueType::Enum); }
 bool VMValue::is_union() const          { return (value_type == VMValueType::Union); }

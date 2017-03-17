@@ -2,49 +2,50 @@
 #include "../vm/ast.h"
 #include <cstring>
 
-BTVMIO::BTVMIO(): _endianness(BTEndianness::PlatformEndian)
-{
+#define BUFFER_SIZE 4096
 
+BTVMIO::BTVMIO(): _endianness(BTEndianness::PlatformEndian), _buffersize(0)
+{
+    this->_buffer = static_cast<uint8_t*>(malloc(BUFFER_SIZE));
 }
 
 BTVMIO::~BTVMIO()
 {
-
+    free(this->_buffer);
+    this->_buffer = NULL;
 }
 
-void BTVMIO::read(const VMValuePtr &vmvalue, uint64_t size)
+void BTVMIO::read(const VMValuePtr &vmvalue, uint64_t bytes)
 {
-    uint8_t* buffer = static_cast<uint8_t*>(malloc(size));
-    this->readData(buffer, size);
-
-    if(vmvalue->is_integer())
+    if(this->_cursor.bit || (vmvalue->value_bits != -1))
     {
-        if(vmvalue->value_type == VMValueType::Bool)
-            *vmvalue->value_ref<bool>() = (*reinterpret_cast<bool*>(buffer) != 0);
-        else
-            this->readInteger(vmvalue, buffer, size, vmvalue->is_signed());
-    }
-    else if(vmvalue->is_floating_point())
-    {
-        if(vmvalue->value_type == VMValueType::Float)
-            *vmvalue->value_ref<float>() = *reinterpret_cast<float*>(buffer);
-        else
-            *vmvalue->value_ref<double>() = *reinterpret_cast<float*>(buffer);
-    }
-    else if(node_is(vmvalue->value_typedef, NEnum))
-    {
-        NEnum* nenum = static_cast<NEnum*>(vmvalue->value_typedef);
-
-        if(node_inherits(nenum->type, NScalarType))
-        {
-            NScalarType* nscalartype = static_cast<NScalarType*>(nenum->type);
-            this->readInteger(vmvalue, buffer, size, nscalartype->is_signed);
-        }
+        uint64_t bits = vmvalue->value_bits == -1 ? (bytes * PLATFORM_BITS) : static_cast<uint64_t>(vmvalue->value_bits);
+        this->readBits(vmvalue->value_ref<uint8_t>(), bits);
     }
     else
-        std::memcpy(vmvalue->value_ref<char>(), buffer, size);
+    {
+        this->readBytes(vmvalue->value_ref<uint8_t>(), bytes);
+        this->elaborateEndianness(vmvalue);
+    }
+}
 
-    free(buffer);
+uint64_t BTVMIO::offset() const
+{
+    return this->_cursor.position;
+}
+
+bool BTVMIO::atEof() const
+{
+    if(!this->_buffer || this->_cursor.hasBits() || !this->_cursor.moved)
+        return false;
+
+    return (this->_buffersize < BUFFER_SIZE) && (this->_cursor.rel_position >= this->_buffersize);
+}
+
+void BTVMIO::seek(uint64_t offset)
+{
+    this->updateBuffer();
+    this->_cursor.position = offset;
 }
 
 int BTVMIO::endianness() const
@@ -62,28 +63,86 @@ void BTVMIO::setBigEndian()
     this->_endianness = BTEndianness::BigEndian;
 }
 
-void BTVMIO::readInteger(const VMValuePtr &vmvalue, const uint8_t *buffer, uint64_t size, bool issigned)
+uint8_t BTVMIO::readBit()
 {
-    if(issigned)
-    {
-        if(size <= 1)
-            *vmvalue->value_ref<int64_t>() = *buffer;
-         else if(size <= 2)
-            *vmvalue->value_ref<int64_t>() = this->cpuEndianness(*reinterpret_cast<const int16_t*>(buffer));
-         else if(size <= 4)
-            *vmvalue->value_ref<int64_t>() = this->cpuEndianness(*reinterpret_cast<const int32_t*>(buffer));
-         else
-            *vmvalue->value_ref<int64_t>() = this->cpuEndianness(*reinterpret_cast<const int64_t*>(buffer));
+    uint8_t* sbuffer = this->_buffer + this->_cursor.rel_position;
+    uint8_t val = *sbuffer & (1u << this->_cursor.bit);
 
-         return;
+    this->_cursor.bit++;
+
+    if(this->_cursor.bit == PLATFORM_BITS)
+    {
+        this->_cursor++;
+        this->_cursor.bit = 0;
     }
 
-    if(size <= 1)
-        *vmvalue->value_ref<uint64_t>() = *buffer;
-    else if(size <= 2)
-        *vmvalue->value_ref<uint64_t>() = this->cpuEndianness(*reinterpret_cast<const uint16_t*>(buffer));
-    else if(size <= 4)
-        *vmvalue->value_ref<uint64_t>() = this->cpuEndianness(*reinterpret_cast<const uint32_t*>(buffer));
-    else
-        *vmvalue->value_ref<uint64_t>() = this->cpuEndianness(*reinterpret_cast<const uint64_t*>(buffer));
+    return val;
+}
+
+bool BTVMIO::atBufferEnd() const
+{
+    if(this->_cursor.hasBits())
+        return false;
+
+    return this->_cursor.rel_position >= this->_buffersize;
+}
+
+uint8_t* BTVMIO::updateBuffer()
+{
+    this->_buffersize = this->readData(this->_buffer, BUFFER_SIZE);
+    this->_cursor.rewind();
+    return this->_buffer;
+}
+
+void BTVMIO::readBytes(uint8_t *buffer, uint64_t bytescount)
+{
+    uint8_t* sbuffer = this->_buffer + this->_cursor.rel_position;
+    uint8_t* dbuffer = buffer;
+
+    for(uint64_t i = 0; i < bytescount && !this->atEof(); i++)
+    {
+        if(this->atBufferEnd())
+            sbuffer = this->updateBuffer();
+
+        *dbuffer = *sbuffer;
+        sbuffer++; dbuffer++;
+
+        this->_cursor++;
+    }
+}
+
+void BTVMIO::readBits(uint8_t *buffer, uint64_t bitscount)
+{
+    uint8_t* sbuffer = this->_buffer + this->_cursor.rel_position;
+    uint8_t* dbuffer = buffer;
+
+    for(uint64_t i = 0; i < bitscount && !this->atEof(); i++)
+    {
+        if(this->atBufferEnd())
+            sbuffer = this->updateBuffer();
+
+        *dbuffer |= this->readBit();
+
+        if(!this->_cursor.bit)
+        {
+            dbuffer++; sbuffer++;
+            *dbuffer = 0;
+        }
+    }
+}
+
+void BTVMIO::elaborateEndianness(const VMValuePtr &vmvalue)
+{
+    if(vmvalue->value_type == VMValueType::s16)
+        *vmvalue->value_ref<int64_t>() = this->cpuEndianness(*vmvalue->value_ref<int16_t>());
+    else if((vmvalue->value_type == VMValueType::s32) || (vmvalue->value_type == VMValueType::Float))
+        *vmvalue->value_ref<int64_t>() = this->cpuEndianness(*vmvalue->value_ref<int32_t>());
+    else if((vmvalue->value_type == VMValueType::s64) || (vmvalue->value_type == VMValueType::Double))
+        *vmvalue->value_ref<int64_t>() = this->cpuEndianness(*vmvalue->value_ref<int64_t>());
+    else if(vmvalue->value_type == VMValueType::u16)
+        *vmvalue->value_ref<uint64_t>() = this->cpuEndianness(*vmvalue->value_ref<uint16_t>());
+    else if(vmvalue->value_type == VMValueType::u32)
+        *vmvalue->value_ref<uint64_t>() = this->cpuEndianness(*vmvalue->value_ref<uint32_t>());
+    else if(vmvalue->value_type == VMValueType::u64)
+        *vmvalue->value_ref<uint64_t>() = this->cpuEndianness(*vmvalue->value_ref<uint64_t>());
 }
