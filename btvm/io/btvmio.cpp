@@ -3,6 +3,7 @@
 #include <cstring>
 
 #define BUFFER_SIZE 4096
+#define align_to(x, a) (x + (a - (x % a)))
 
 BTVMIO::BTVMIO(): _endianness(BTEndianness::PlatformEndian), _buffersize(0)
 {
@@ -17,13 +18,15 @@ BTVMIO::~BTVMIO()
 
 void BTVMIO::read(const VMValuePtr &vmvalue, uint64_t bytes)
 {
-    if(this->_cursor.bit || (vmvalue->value_bits != -1))
+    if(vmvalue->value_bits != -1)
     {
         uint64_t bits = vmvalue->value_bits == -1 ? (bytes * PLATFORM_BITS) : static_cast<uint64_t>(vmvalue->value_bits);
+        this->_cursor.size = bytes;
         this->readBits(vmvalue->value_ref<uint8_t>(), bits);
     }
     else
     {
+        this->alignCursor();
         this->readBytes(vmvalue->value_ref<uint8_t>(), bytes);
         this->elaborateEndianness(vmvalue);
     }
@@ -66,7 +69,7 @@ void BTVMIO::setBigEndian()
 uint8_t BTVMIO::readBit()
 {
     uint8_t* sbuffer = this->_buffer + this->_cursor.rel_position;
-    uint8_t val = *sbuffer & (1u << this->_cursor.bit);
+    uint8_t val = (*sbuffer & (1u << this->_cursor.bit)) >> this->_cursor.bit;
 
     this->_cursor.bit++;
 
@@ -79,6 +82,13 @@ uint8_t BTVMIO::readBit()
     return val;
 }
 
+uint8_t* BTVMIO::updateBuffer()
+{
+    this->_buffersize = this->readData(this->_buffer, BUFFER_SIZE);
+    this->_cursor.rewind();
+    return this->_buffer;
+}
+
 bool BTVMIO::atBufferEnd() const
 {
     if(this->_cursor.hasBits())
@@ -87,11 +97,14 @@ bool BTVMIO::atBufferEnd() const
     return this->_cursor.rel_position >= this->_buffersize;
 }
 
-uint8_t* BTVMIO::updateBuffer()
+void BTVMIO::alignCursor()
 {
-    this->_buffersize = this->readData(this->_buffer, BUFFER_SIZE);
-    this->_cursor.rewind();
-    return this->_buffer;
+    if(!this->_cursor.hasBits() || !this->_cursor.size)
+        return;
+
+    this->_cursor.position = align_to(this->_cursor.position, this->_cursor.size);
+    this->_cursor.rel_position = align_to(this->_cursor.rel_position, this->_cursor.size);
+    this->_cursor.size = this->_cursor.bit = 0;
 }
 
 void BTVMIO::readBytes(uint8_t *buffer, uint64_t bytescount)
@@ -113,19 +126,18 @@ void BTVMIO::readBytes(uint8_t *buffer, uint64_t bytescount)
 
 void BTVMIO::readBits(uint8_t *buffer, uint64_t bitscount)
 {
-    uint8_t* sbuffer = this->_buffer + this->_cursor.rel_position;
     uint8_t* dbuffer = buffer;
 
     for(uint64_t i = 0; i < bitscount && !this->atEof(); i++)
     {
         if(this->atBufferEnd())
-            sbuffer = this->updateBuffer();
+            this->updateBuffer();
 
         *dbuffer |= this->readBit();
 
         if(!this->_cursor.bit)
         {
-            dbuffer++; sbuffer++;
+            dbuffer++;
             *dbuffer = 0;
         }
     }

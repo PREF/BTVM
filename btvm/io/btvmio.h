@@ -12,11 +12,11 @@ class BTVMIO
 {
     private:
         struct BitCursor {
-            BitCursor(): position(0), rel_position(0), bit(0), moved(false) { }
-            void rewind() { rel_position = bit = 0; moved = true; }
+            BitCursor(): position(0), rel_position(0), bit(0), size(0), moved(false) { }
+            void rewind() { rel_position = bit = size = 0; moved = true; }
             bool hasBits() const { return bit > 0; }
             BitCursor& operator++(int) { position++; rel_position++; moved = true; return *this; }
-            uint64_t position, rel_position, bit;
+            uint64_t position, rel_position, bit, size;
             bool moved;
         };
 
@@ -48,8 +48,9 @@ class BTVMIO
 
     private:
         uint8_t readBit();
-        bool atBufferEnd() const;
         uint8_t *updateBuffer();
+        bool atBufferEnd() const;
+        void alignCursor();
         void readBytes(uint8_t* buffer, uint64_t bytescount);
         void readBits(uint8_t* buffer, uint64_t bitscount);
 
