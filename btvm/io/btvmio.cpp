@@ -18,6 +18,12 @@ BTVMIO::~BTVMIO()
 
 void BTVMIO::read(const VMValuePtr &vmvalue, uint64_t bytes)
 {
+    if(!vmvalue)
+    {
+        this->walk(bytes);
+        return;
+    }
+
     if(vmvalue->value_bits != -1)
     {
         uint64_t bits = vmvalue->value_bits == -1 ? (bytes * PLATFORM_BITS) : static_cast<uint64_t>(vmvalue->value_bits);
@@ -30,6 +36,15 @@ void BTVMIO::read(const VMValuePtr &vmvalue, uint64_t bytes)
         this->readBytes(vmvalue->value_ref<uint8_t>(), bytes);
         this->elaborateEndianness(vmvalue);
     }
+}
+
+void BTVMIO::walk(uint64_t steps)
+{
+    if(!steps)
+        return;
+
+    this->alignCursor();
+    this->seek(this->_cursor.position + steps);
 }
 
 uint64_t BTVMIO::offset() const

@@ -511,23 +511,21 @@ VMValuePtr VM::allocType(Node *node, Node *size)
         return vmvalue;
     }
 
-    if(node_is(ndecl, NStruct))
+    if(node_is(ndecl, NStruct) || node_is(ndecl, NUnion))
     {
-        NStruct* nstruct = static_cast<NStruct*>(ndecl);
-        vmvalue = VMValue::allocate_type(VMValueType::Struct, ndecl);
+        NCompoundType* ncompound = static_cast<NCompoundType*>(ndecl);
+
+        if(node_is(ndecl, NUnion))
+            vmvalue = VMValue::allocate_type(VMValueType::Union, ndecl);
+        else
+            vmvalue = VMValue::allocate_type(VMValueType::Struct, ndecl);
 
         this->_declarationstack.push_back(vmvalue);
-        this->interpret(nstruct->members);
+        this->interpret(ncompound->members);
         this->_declarationstack.pop_back();
-    }
-    else if(node_is(ndecl, NUnion))
-    {
-        NUnion* nunion = static_cast<NUnion*>(ndecl);
-        vmvalue = VMValue::allocate_type(VMValueType::Union, ndecl);
 
-        this->_declarationstack.push_back(vmvalue);
-        this->interpret(nunion->members);
-        this->_declarationstack.pop_back();
+        if(node_is(ndecl, NUnion))
+            this->readValue(NULL, this->sizeOf(vmvalue), true); // Seek away from union
     }
     else if(node_is(ndecl, NEnum))
     {

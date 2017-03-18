@@ -34,6 +34,7 @@ class BTVMIO
         BTVMIO();
         virtual ~BTVMIO();
         void read(const VMValuePtr &vmvalue, uint64_t bytes);
+        void walk(uint64_t steps);
         uint64_t offset() const;
         bool atEof() const;
 
