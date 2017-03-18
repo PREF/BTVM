@@ -71,23 +71,26 @@ class BTVMIO
 template<typename T> T BTVMIO::cpuEndianness(T value) const
 {
     T cpuvalue = 0;
+    uint8_t* pval = reinterpret_cast<uint8_t*>(&cpuvalue);
 
     if(this->_endianness == BTEndianness::LittleEndian) // CPU -> LE
     {
         for(size_t i = 0; i < sizeof(T); i++)
         {
-            uint8_t b = static_cast<uint8_t>(value >> (i * PLATFORM_BITS));
-            cpuvalue |= (static_cast<T>(b) << (i * PLATFORM_BITS));
+            T shift = i * PLATFORM_BITS, mask = 0xFF << shift;
+            pval[i] = (value & mask) >> shift;
         }
     }
-    else // CPU -> BE
+    else if(this->_endianness == BTEndianness::BigEndian) // CPU -> BE
     {
-        for(size_t i = sizeof(T); i > 0; i--)
+        for(size_t i = 0, j = sizeof(T) - 1; i < sizeof(T); i++, j--)
         {
-            uint8_t b = static_cast<uint8_t>(value >> (i * PLATFORM_BITS));
-            cpuvalue |= (static_cast<T>(b) << (i * PLATFORM_BITS));
+            T shift = j * PLATFORM_BITS, mask = 0xFF << shift;
+            pval[i] = (value & mask) >> shift;
         }
     }
+    else
+        return value;
 
     return cpuvalue;
 }
