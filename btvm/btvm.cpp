@@ -76,8 +76,15 @@ void BTVM::print(const string &s)
     cout << s;
 }
 
-void BTVM::readValue(const VMValuePtr& vmvar, uint64_t size)
+void BTVM::readValue(const VMValuePtr& vmvar, uint64_t size, bool seek)
 {
+    if(!seek)
+    {
+        IO_NoSeek(this->_btvmio);
+        this->_btvmio->read(vmvar, size);
+        return;
+    }
+
     this->_btvmio->read(vmvar, size);
 }
 

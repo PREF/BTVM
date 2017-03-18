@@ -23,7 +23,7 @@ class BTVM: public VM
 
     protected:
         virtual void print(const std::string& s);
-        virtual void readValue(const VMValuePtr &vmvar, uint64_t size);
+        virtual void readValue(const VMValuePtr &vmvar, uint64_t size, bool seek);
         virtual void processFormat(const VMValuePtr& vmvar);
 
     private:

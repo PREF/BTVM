@@ -520,6 +520,15 @@ VMValuePtr VM::allocType(Node *node, Node *size)
         this->interpret(nstruct->members);
         this->_declarationstack.pop_back();
     }
+    else if(node_is(ndecl, NUnion))
+    {
+        NUnion* nunion = static_cast<NUnion*>(ndecl);
+        vmvalue = VMValue::allocate_type(VMValueType::Union, ndecl);
+
+        this->_declarationstack.push_back(vmvalue);
+        this->interpret(nunion->members);
+        this->_declarationstack.pop_back();
+    }
     else if(node_is(ndecl, NEnum))
     {
         VMValue vmenumval;
@@ -579,7 +588,7 @@ VMValuePtr VM::allocVariable(NVariable *nvar)
 
     if(!nvar->is_const && !nvar->is_local)
     {
-        this->readValue(vmvar);
+        this->readValue(vmvar, this->_declarationstack.empty() || !this->_declarationstack.back()->is_union());
 
         if(this->_declarationstack.empty())
             this->processFormat(vmvar);
@@ -669,15 +678,15 @@ void VM::writeFile(const string &file, const string &data) const
     std::fclose(fp);
 }
 
-void VM::readValue(const VMValuePtr &vmvar)
+void VM::readValue(const VMValuePtr &vmvar, bool seek)
 {
     if(vmvar->is_array())
     {
         for(auto it = vmvar->m_value.begin(); it != vmvar->m_value.end(); it++)
-            this->readValue(*it);
+            this->readValue(*it, seek);
     }
     else if(vmvar->is_readable())
-        this->readValue(vmvar, this->sizeOf(vmvar));
+        this->readValue(vmvar, this->sizeOf(vmvar), seek);
 }
 
 bool VM::pushScope(NFunction *nfunc, NCall *ncall)
@@ -880,6 +889,8 @@ int64_t VM::sizeOf(Node *node)
         return this->sizeOf(static_cast<NBlock*>(node)->statements);
     else if(node_is(node, NStruct))
         return this->compoundSize(static_cast<NStruct*>(node)->members);
+    else if(node_is(node, NUnion))
+        return this->unionSize(static_cast<NUnion*>(node)->members);
 
     return this->sizeOf(this->interpret(node));
 }
@@ -919,6 +930,8 @@ int64_t VM::sizeOf(const VMValuePtr &vmvalue)
     {
         if(node_is(vmvalue->value_typedef, NStruct))
             return this->compoundSize(vmvalue->m_value);
+        else if(node_is(vmvalue->value_typedef, NUnion))
+            return this->unionSize(vmvalue->m_value);
 
         return this->sizeOf(vmvalue->value_typedef);
     }
@@ -960,47 +973,6 @@ int64_t VM::sizeOf(NIdentifier *nid)
         return this->sizeOf(ndecl);
 
     return this->sizeOf(this->variable(nid));
-}
-
-int64_t VM::sizeOf(NStruct *nstruct)
-{
-    uint64_t totbits = 0, bftotsize = 0, boundarybits = 0;
-
-    for(auto it = nstruct->members.begin(); it != nstruct->members.end(); it++)
-    {
-        if(node_is(*it, NVariable))
-        {
-            NVariable* nvar = static_cast<NVariable*>(*it);
-            uint64_t varsize = this->sizeOf(*it) * PLATFORM_BITS;
-            boundarybits = std::max(varsize, boundarybits);
-
-            if(!nvar->bits)
-            {
-                totbits += varsize;
-
-                if(bftotsize)
-                    totbits += (boundarybits - bftotsize);
-
-                bftotsize = 0;
-            }
-            else
-            {
-                uint64_t bfsize = *this->interpret(nvar->bits)->value_ref<uint64_t>();
-                totbits += bfsize;
-                bftotsize += bfsize;
-            }
-
-            continue;
-        }
-
-        totbits += this->sizeOf(*it) * PLATFORM_BITS;
-    }
-
-    if(bftotsize)
-        totbits += (boundarybits - bftotsize);
-
-    int64_t sz = totbits / PLATFORM_BITS;
-    return sz;
 }
 
 VMValuePtr VM::callVM(NCall *ncall)

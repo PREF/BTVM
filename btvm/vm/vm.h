@@ -87,7 +87,7 @@ class VM
         int64_t getBits(Node *n);
         std::string readFile(const std::string& file) const;
         void writeFile(const std::string& file, const std::string& data) const;
-        void readValue(const VMValuePtr& vmvar);
+        void readValue(const VMValuePtr& vmvar, bool seek);
 
     public: // Error management
         virtual VMValuePtr error(const std::string& msg);
@@ -97,16 +97,16 @@ class VM
         void syntaxError(const std::string& token, unsigned int line);
 
     protected:
-        virtual void readValue(const VMValuePtr& vmvar, uint64_t size) = 0;
+        virtual void readValue(const VMValuePtr& vmvar, uint64_t size, bool seek) = 0;
         virtual void processFormat(const VMValuePtr& vmvar) = 0;
         int64_t sizeOf(const VMValuePtr& vmvalue);
         int64_t sizeOf(NIdentifier* nid);
-        int64_t sizeOf(NStruct* nstruct);
         int64_t sizeOf(NVariable* nvar);
         int64_t sizeOf(Node* node);
 
     private:
         template<typename T> T symbol(NIdentifier* nid, std::function<T(const VMScope&, NIdentifier*)> cb) const;
+        template<typename T> int64_t unionSize(const std::vector<T> &v);
         template<typename T> int64_t compoundSize(const std::vector<T> &v);
         template<typename T> int64_t sizeOf(const std::vector<T> &v);
 
@@ -137,6 +137,16 @@ template<typename T> T VM::symbol(NIdentifier *nid, std::function<T(const VMScop
     }
 
     return cb(this->_globalscope, nid); // Try globals
+}
+
+template<typename T> int64_t VM::unionSize(const std::vector<T> &v)
+{
+    int64_t maxsize = 0;
+
+    for(auto it = v.begin(); it != v.end(); it++)
+        maxsize = std::max(maxsize, this->sizeOf(*it));
+
+    return maxsize;
 }
 
 template<typename T> int64_t VM::compoundSize(const std::vector<T> &v)
