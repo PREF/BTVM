@@ -135,6 +135,7 @@ void BTVM::initFunctions()
     this->functions["FEof"]          = &BTVM::vmFEof;
     this->functions["FileSize"]      = &BTVM::vmFileSize;
     this->functions["FTell"]         = &BTVM::vmFTell;
+    this->functions["FSeek"]         = &BTVM::vmFSeek;
     this->functions["ReadBytes"]     = &BTVM::vmReadBytes;
     this->functions["ReadUInt"]      = &BTVM::vmReadUInt;
     this->functions["LittleEndian"]  = &BTVM::vmLittleEndian;
@@ -243,6 +244,26 @@ VMValuePtr BTVM::vmBigEndian(VM *self, NCall *ncall)
 
     static_cast<BTVM*>(self)->_btvmio->setBigEndian();
     return VMValuePtr();
+}
+
+VMValuePtr BTVM::vmFSeek(VM *self, NCall *ncall)
+{
+    if(ncall->arguments.size() != 1)
+        return self->argumentError(ncall, 1);
+
+    VMValuePtr vmvalue = VMValue::copy_value(*self->interpret(ncall->arguments.front()));
+
+    if(!vmvalue->is_scalar())
+        return self->typeError(vmvalue, "scalar");
+
+    BTVM* btvm = static_cast<BTVM*>(self);
+    uint64_t offset = *vmvalue->value_ref<uint64_t>();
+
+    if(offset >= btvm->_btvmio->size())
+        return VMValue::allocate_literal(static_cast<int64_t>(-1));
+
+    btvm->_btvmio->seek(offset);
+    return VMValue::allocate_literal(static_cast<int64_t>(0));
 }
 
 VMValuePtr BTVM::vmCeil(VM *self, NCall *ncall)

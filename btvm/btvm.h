@@ -45,6 +45,7 @@ class BTVM: public VM
         static VMValuePtr vmReadUInt(VM *self, NCall* ncall);
         static VMValuePtr vmLittleEndian(VM *self, NCall* ncall);
         static VMValuePtr vmBigEndian(VM *self, NCall* ncall);
+        static VMValuePtr vmFSeek(VM *self, NCall* ncall);
 
     private: // Math Functions
         static VMValuePtr vmCeil(VM* self, NCall* ncall);
