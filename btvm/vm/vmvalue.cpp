@@ -20,64 +20,84 @@ VMValue::VMValue(int64_t value)  : value_flags(VMValueFlags::None), value_type(V
 VMValue::VMValue(uint64_t value) : value_flags(VMValueFlags::None), value_type(VMValueType::u64),    value_typedef(NULL), value_bits(-1), s_value_ref(NULL), ui_value(value) { }
 VMValue::VMValue(double value)   : value_flags(VMValueFlags::None), value_type(VMValueType::Double), value_typedef(NULL), value_bits(-1), s_value_ref(NULL), d_value(value)  { }
 
-VMValuePtr VMValue::allocate_type(VMValueType::VMType valuetype, Node *type) { return VMValue::allocate_type(valuetype, 0, type); }
+VMValuePtr VMValue::allocate(const std::string &id)
+{
+    VMValuePtr vmvalue = std::make_shared<VMValue>();
+    vmvalue->value_id = id;
+    return vmvalue;
+}
 
-VMValuePtr VMValue::allocate_type(VMValueType::VMType valuetype, uint64_t size, Node *type)
+VMValuePtr VMValue::allocate(VMValueType::VMType valuetype, Node *type)
 {
     VMValuePtr vmvalue = std::make_shared<VMValue>();
     vmvalue->value_type = valuetype;
     vmvalue->value_typedef = type;
-
-    if(size > 0)
-        vmvalue->s_value.resize(size, 0);
-
     return vmvalue;
 }
 
+VMValuePtr VMValue::allocate(uint64_t bits, bool issigned, bool isfp, Node *type) { return VMValue::allocate(VMFunctions::scalar_type(bits, issigned, isfp), type); }
+
 VMValuePtr VMValue::allocate_literal(bool value, Node *type)
 {
-    VMValuePtr vmvalue = VMValue::allocate_type(VMValueType::Bool, type);
+    VMValuePtr vmvalue = VMValue::allocate(VMValueType::Bool, type);
     vmvalue->ui_value = value;
     return vmvalue;
 }
 
 VMValuePtr VMValue::allocate_literal(int64_t value, Node *type)
 {
-    VMValuePtr vmvalue = VMValue::allocate_type(VMFunctions::integer_literal_type(value), type);
+    VMValuePtr vmvalue = VMValue::allocate(VMFunctions::integer_literal_type(value), type);
     vmvalue->si_value = value;
     return vmvalue;
 }
 
 VMValuePtr VMValue::allocate_literal(uint64_t value, Node *type)
 {
-    VMValuePtr vmvalue = VMValue::allocate_type(VMFunctions::integer_literal_type(value), type);
+    VMValuePtr vmvalue = VMValue::allocate(VMFunctions::integer_literal_type(value), type);
     vmvalue->ui_value = value;
     return vmvalue;
 }
 
 VMValuePtr VMValue::allocate_literal(double value, Node *type)
 {
-    VMValuePtr vmvalue = VMValue::allocate_type(VMValueType::Double, type);
+    VMValuePtr vmvalue = VMValue::allocate(VMValueType::Double, type);
     vmvalue->d_value = value;
     return vmvalue;
 }
 
-VMValuePtr VMValue::allocate_scalar(uint64_t bits, bool issigned, bool isfp, Node *type) { return VMValue::allocate_type(VMFunctions::scalar_type(bits, issigned, isfp), type); }
-VMValuePtr VMValue::allocate_boolean(Node *type) { return VMValue::allocate_type(VMValueType::Bool, 1, type); }
-VMValuePtr VMValue::allocate_string(uint64_t size, Node *type) { return VMValue::allocate_type(VMValueType::String, size + 1, type); }
-
-VMValuePtr VMValue::allocate_array(uint64_t size, Node *type)
+VMValuePtr VMValue::allocate_literal(const std::string &value, Node *type)
 {
-    VMValuePtr vmvalue = VMValue::allocate_type(VMValueType::Array, type);
-    vmvalue->m_value.reserve(size);
+    VMValuePtr vmvalue = VMValue::allocate(VMValueType::String, type);
+    vmvalue->allocate_string(value, type);
     return vmvalue;
 }
 
-VMValuePtr VMValue::allocate_string(const std::string &s, Node *type)
+
+void VMValue::allocate_type(VMValueType::VMType valuetype, uint64_t size, Node *type)
 {
-    VMValuePtr vmvalue = VMValue::allocate_string(s.size(), type);
-    std::copy(s.begin(), s.end(), vmvalue->s_value.begin());
-    return vmvalue;
+    value_type = valuetype;
+    value_typedef = type;
+
+    if(size > 0)
+        s_value.resize(size, 0);
+}
+
+void VMValue::allocate_type(VMValueType::VMType valuetype, Node *type) { allocate_type(valuetype, 0, type); }
+void VMValue::allocate_scalar(uint64_t bits, bool issigned, bool isfp, Node *type) { allocate_type(VMFunctions::scalar_type(bits, issigned, isfp), type);  }
+void VMValue::allocate_boolean(Node *type) { allocate_type(VMValueType::Bool, 1, type);  }
+
+void VMValue::allocate_array(uint64_t size, Node *type)
+{
+    allocate_type(VMValueType::Array, type);
+    m_value.reserve(size);
+}
+
+void VMValue::allocate_string(uint64_t size, Node *type) { allocate_type(VMValueType::String, size + 1, type); }
+
+void VMValue::allocate_string(const std::string &s, Node *type)
+{
+    allocate_string(s.size(), type);
+    std::copy(s.begin(), s.end(), s_value.begin());
 }
 
 VMValuePtr VMValue::copy_value(const VMValue &vmsrc) { return std::make_shared<VMValue>(vmsrc); }

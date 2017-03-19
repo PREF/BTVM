@@ -379,7 +379,7 @@ VMValuePtr VM::interpret(Node *node)
     else if(node_is(node, NReal))
         return VMValue::allocate_literal(static_cast<NReal*>(node)->value, node);
     else if(node_is(node, NString))
-        return VMValue::allocate_string(static_cast<NString*>(node)->value, node);
+        return VMValue::allocate_literal(static_cast<NString*>(node)->value, node);
     else if(node_is(node, NDoWhile))
         return this->interpret(static_cast<NDoWhile*>(node));
     else if(node_is(node, NWhile))
@@ -468,10 +468,13 @@ void VM::declareVariables(NVariable *nvar)
 
 void VM::declareVariable(NVariable *nvar)
 {
+    VMValuePtr vmvar = VMValue::allocate(nvar->name->value);
+
     if(!this->_declarationstack.empty())
     {
         VMValuePtr vmvalue = this->_declarationstack.back();
-        vmvalue->m_value.push_back(this->allocVariable(nvar));
+        vmvalue->m_value.push_back(vmvar);
+        this->allocVariable(vmvar, nvar);
         return;
     }
 
@@ -483,12 +486,12 @@ void VM::declareVariable(NVariable *nvar)
         return;
     }
 
-    scope.variables[nvar->name->value] = this->allocVariable(nvar);
+    scope.variables[nvar->name->value] = vmvar;
+    this->allocVariable(vmvar, nvar);
 }
 
-VMValuePtr VM::allocType(Node *node, Node *nsize, const NodeList& nconstructor)
+void VM::allocType(const VMValuePtr& vmvar, Node *node, Node *nsize, const NodeList& nconstructor)
 {
-    VMValuePtr vmvalue;
     Node* ndecl = node_is(node, NType) ? this->declaration(node) : node;
 
     if(nsize)
@@ -496,19 +499,23 @@ VMValuePtr VM::allocType(Node *node, Node *nsize, const NodeList& nconstructor)
         VMValuePtr vmsize = this->interpret(nsize);
 
         if(!this->isSizeValid(vmsize))
-            return VMValuePtr();
+            return;
 
         if(!node_is(ndecl, NStringType))
         {
-            vmvalue = VMValue::allocate_array(vmsize->ui_value, ndecl);
+            vmvar->allocate_array(vmsize->ui_value, ndecl);
 
             for(uint64_t i = 0; i < vmsize->ui_value; i++)
-                vmvalue->m_value.push_back(this->allocType(ndecl));
+            {
+                VMValuePtr vmelement = VMValue::allocate();
+                vmvar->m_value.push_back(vmelement);
+                this->allocType(vmelement, ndecl);
+            }
         }
         else
-            vmvalue = VMValue::allocate_string(vmsize->ui_value, ndecl);
+            vmvar->allocate_string(vmsize->ui_value, ndecl);
 
-        return vmvalue;
+        return;
     }
 
     if(node_is(ndecl, NStruct) || node_is(ndecl, NUnion))
@@ -516,17 +523,20 @@ VMValuePtr VM::allocType(Node *node, Node *nsize, const NodeList& nconstructor)
         NCompoundType* ncompound = static_cast<NCompoundType*>(ndecl);
 
         if(node_is(ndecl, NUnion))
-            vmvalue = VMValue::allocate_type(VMValueType::Union, ndecl);
+            vmvar->allocate_type(VMValueType::Union, ndecl);
         else
-            vmvalue = VMValue::allocate_type(VMValueType::Struct, ndecl);
+            vmvar->allocate_type(VMValueType::Struct, ndecl);
 
         if(ncompound->arguments.size() != nconstructor.size())
-            return this->argumentError(ncompound->name, ncompound->arguments, nconstructor);
+        {
+            this->argumentError(ncompound->name, ncompound->arguments, nconstructor);
+            return;
+        }
 
-        this->_declarationstack.push_back(vmvalue);
+        this->_declarationstack.push_back(vmvar);
 
         if(!this->pushScope(ncompound->name, ncompound->arguments, nconstructor))
-            return VMValuePtr();
+            return;
 
         this->interpret(ncompound->members);
 
@@ -534,55 +544,59 @@ VMValuePtr VM::allocType(Node *node, Node *nsize, const NodeList& nconstructor)
         this->_declarationstack.pop_back();
 
         if(node_is(ndecl, NUnion))
-            this->readValue(NULL, this->sizeOf(vmvalue), true); // Seek away from union
+            this->readValue(NULL, this->sizeOf(vmvar), true); // Seek away from union
     }
     else if(node_is(ndecl, NEnum))
     {
-        VMValue vmenumval;
+        VMValuePtr vmenumval;
         NEnum* nenum = static_cast<NEnum*>(ndecl);
-        vmvalue = VMValue::allocate_type(VMValueType::Enum, ndecl);
+
+        vmvar->allocate_type(VMValueType::Enum, ndecl);
 
         for(auto it = nenum->members.begin(); it != nenum->members.end(); it++)
         {
             if(!node_is(*it, NEnumValue))
-                return this->error("Unexpected enum-value of type '" + node_typename(*it) + "'");
+            {
+                this->error("Unexpected enum-value of type '" + node_typename(*it) + "'");
+                return;
+            }
 
             NEnumValue* nenumval = static_cast<NEnumValue*>(*it);
 
             if(nenumval->value)
-                vmenumval = *this->interpret(nenumval->value);
+                vmenumval = this->interpret(nenumval->value);
             else
             {
-                if(vmenumval.is_null())
-                    vmenumval = *this->allocType(nenum->type);
+                if(!vmenumval)
+                {
+                    vmenumval = VMValue::allocate();
+                    this->allocType(vmenumval, nenum->type);
+                }
                 else
-                    vmenumval++;
+                    (*vmenumval)++;
             }
 
-            vmenumval.value_typedef = nenum->type;
-            vmenumval.value_id = nenumval->name->value;
-            vmvalue->m_value.push_back(VMValue::copy_value(vmenumval));
+            vmenumval->value_typedef = nenum->type;
+            vmenumval->value_id = nenumval->name->value;
+            vmvar->m_value.push_back(VMValue::copy_value(*vmenumval));
         }
     }
     else if(node_inherits(ndecl, NScalarType))
     {
         NScalarType* nscalar = static_cast<NScalarType*>(ndecl);
-        vmvalue = VMValue::allocate_scalar(nscalar->bits, nscalar->is_signed, nscalar->is_fp, ndecl);
+        vmvar->allocate_scalar(nscalar->bits, nscalar->is_signed, nscalar->is_fp, ndecl);
     }
     else if(node_is(ndecl, NBooleanType))
-        vmvalue = VMValue::allocate_boolean(ndecl);
+        vmvar->allocate_boolean(ndecl);
     else if(node_is(ndecl, NStringType))
-        vmvalue = VMValue::allocate_string(0, ndecl);
+        vmvar->allocate_string(0, ndecl);
     else
         throw std::runtime_error("Unknown type: '" + node_typename(ndecl) + "'");
-
-    return vmvalue;
 }
 
-VMValuePtr VM::allocVariable(NVariable *nvar)
+void VM::allocVariable(const VMValuePtr& vmvar, NVariable *nvar)
 {
-    VMValuePtr vmvar = this->allocType(nvar->type, this->arraySize(nvar), nvar->constructor);
-    vmvar->value_id = nvar->name->value;
+    this->allocType(vmvar, nvar->type, this->arraySize(nvar), nvar->constructor);
 
     if(nvar->bits)
         vmvar->value_bits = *this->interpret(nvar->bits)->value_ref<int64_t>();
@@ -605,12 +619,13 @@ VMValuePtr VM::allocVariable(NVariable *nvar)
         VMValuePtr vmvalue = this->interpret(nvar->value);
 
         if(!VMFunctions::is_type_compatible(vmvar, vmvalue))
-            return this->error("'" + vmvar->value_id + "': cannot assign '" + vmvalue->type_name() + "' to '" + vmvar->type_name() + "'");
+        {
+            this->error("'" + vmvar->value_id + "': cannot assign '" + vmvalue->type_name() + "' to '" + vmvar->type_name() + "'");
+            return;
+        }
 
         vmvar->assign(*vmvalue);
     }
-
-    return vmvar;
 }
 
 VMValuePtr VM::variable(NIdentifier *nid)

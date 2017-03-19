@@ -142,7 +142,7 @@ VMValuePtr BTVM::readScalar(NCall *ncall, uint64_t bits, bool issigned)
         this->_btvmio->seek(pos->ui_value);
     }
 
-    VMValuePtr vmvalue = VMValue::allocate_scalar(bits, issigned, false);
+    VMValuePtr vmvalue = VMValue::allocate(bits, issigned, false);
     this->_btvmio->read(vmvalue, this->sizeOf(vmvalue));
     return vmvalue;
 }

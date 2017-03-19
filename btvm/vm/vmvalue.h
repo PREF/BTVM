@@ -38,17 +38,21 @@ struct VMValue
     VMValue(uint64_t value);
     VMValue(double value);
 
-    static VMValuePtr allocate_type(VMValueType::VMType valuetype, Node* type);
-    static VMValuePtr allocate_type(VMValueType::VMType valuetype, uint64_t size, Node* type);
+    static VMValuePtr allocate(const std::string& id = std::string());
+    static VMValuePtr allocate(VMValueType::VMType valuetype, Node* type = NULL);
+    static VMValuePtr allocate(uint64_t bits, bool issigned, bool isfp, Node* type = NULL);
     static VMValuePtr allocate_literal(bool value, Node* type = NULL);
     static VMValuePtr allocate_literal(int64_t value, Node* type = NULL);
     static VMValuePtr allocate_literal(uint64_t value, Node* type = NULL);
     static VMValuePtr allocate_literal(double value, Node* type = NULL);
-    static VMValuePtr allocate_scalar(uint64_t bits, bool issigned, bool isfp, Node* type = NULL);
-    static VMValuePtr allocate_boolean(Node* type);
-    static VMValuePtr allocate_array(uint64_t size, Node* type);
-    static VMValuePtr allocate_string(uint64_t size, Node* type);
-    static VMValuePtr allocate_string(const std::string& s, Node* type);
+    static VMValuePtr allocate_literal(const std::string& value, Node* type = NULL);
+    void allocate_type(VMValueType::VMType valuetype, Node* type);
+    void allocate_type(VMValueType::VMType valuetype, uint64_t size, Node* type);
+    void allocate_scalar(uint64_t bits, bool issigned, bool isfp, Node* type = NULL);
+    void allocate_boolean(Node* type);
+    void allocate_array(uint64_t size, Node* type);
+    void allocate_string(uint64_t size, Node* type);
+    void allocate_string(const std::string& s, Node* type);
 
     static VMValuePtr copy_value(const VMValue &vmsrc);
 

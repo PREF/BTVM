@@ -73,8 +73,8 @@ class VM
         void declareVariable(NVariable* nvar);
         VMValuePtr call(NCall* ncall);
         VMValuePtr callVM(NCall* ncall);
-        VMValuePtr allocType(Node *node, Node* nsize = NULL, const NodeList& nconstructor = NodeList());
-        VMValuePtr allocVariable(NVariable* nvar);
+        void allocType(const VMValuePtr& vmvar, Node *node, Node* nsize = NULL, const NodeList& nconstructor = NodeList());
+        void allocVariable(const VMValuePtr &vmvar, NVariable* nvar);
         VMValuePtr variable(NIdentifier* id);
         Node* arraySize(NVariable* nvar);
         Node* declaration(Node* node);
