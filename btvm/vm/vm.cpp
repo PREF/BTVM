@@ -723,7 +723,7 @@ bool VM::pushScope(NIdentifier* nid, const NodeList& funcargs, const NodeList& c
         if(!narg->by_reference)
             vmarg = VMValue::copy_value(*vmarg); // Copy value
 
-        if(!VMFunctions::type_cast(vmarg, narg->type))
+        if(!VMFunctions::type_cast(vmarg, this->declaration(narg->type)))
         {
             this->error("'" + nid->value + "': " +
                         "cannot convert argument " + std::to_string(i) + " from '" + vmarg->type_name() +
