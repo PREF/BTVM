@@ -486,14 +486,14 @@ void VM::declareVariable(NVariable *nvar)
     scope.variables[nvar->name->value] = this->allocVariable(nvar);
 }
 
-VMValuePtr VM::allocType(Node *node, Node *size)
+VMValuePtr VM::allocType(Node *node, Node *nsize, const NodeList& nconstructor)
 {
     VMValuePtr vmvalue;
     Node* ndecl = node_is(node, NType) ? this->declaration(node) : node;
 
-    if(size)
+    if(nsize)
     {
-        VMValuePtr vmsize = this->interpret(size);
+        VMValuePtr vmsize = this->interpret(nsize);
 
         if(!this->isSizeValid(vmsize))
             return VMValuePtr();
@@ -520,8 +520,17 @@ VMValuePtr VM::allocType(Node *node, Node *size)
         else
             vmvalue = VMValue::allocate_type(VMValueType::Struct, ndecl);
 
+        if(ncompound->arguments.size() != nconstructor.size())
+            return this->argumentError(ncompound->name, ncompound->arguments, nconstructor);
+
         this->_declarationstack.push_back(vmvalue);
+
+        if(!this->pushScope(ncompound->name, ncompound->arguments, nconstructor))
+            return VMValuePtr();
+
         this->interpret(ncompound->members);
+
+        this->_scopestack.pop_back();
         this->_declarationstack.pop_back();
 
         if(node_is(ndecl, NUnion))
@@ -572,7 +581,7 @@ VMValuePtr VM::allocType(Node *node, Node *size)
 
 VMValuePtr VM::allocVariable(NVariable *nvar)
 {
-    VMValuePtr vmvar = this->allocType(nvar->type, this->arraySize(nvar));
+    VMValuePtr vmvar = this->allocType(nvar->type, this->arraySize(nvar), nvar->constructor);
     vmvar->value_id = nvar->name->value;
 
     if(nvar->bits)
@@ -687,21 +696,21 @@ void VM::readValue(const VMValuePtr &vmvar, bool seek)
         this->readValue(vmvar, this->sizeOf(vmvar), seek);
 }
 
-bool VM::pushScope(NFunction *nfunc, NCall *ncall)
+bool VM::pushScope(NIdentifier* nid, const NodeList& funcargs, const NodeList& callargs)
 {
     VMVariables locals; // Build local variable stack
 
-    for(size_t i = 0; i < ncall->arguments.size(); i++)
+    for(size_t i = 0; i < callargs.size(); i++)
     {
-        NArgument* narg = static_cast<NArgument*>(nfunc->arguments[i]);
-        VMValuePtr vmarg = this->interpret(ncall->arguments[i]);
+        NArgument* narg = static_cast<NArgument*>(funcargs[i]);
+        VMValuePtr vmarg = this->interpret(callargs[i]);
 
         if(!narg->by_reference)
             vmarg = VMValue::copy_value(*vmarg); // Copy value
 
         if(!VMFunctions::type_cast(vmarg, narg->type))
         {
-            this->error("'" + nfunc->name->value + "' function: " +
+            this->error("'" + nid->value + "': " +
                         "cannot convert argument " + std::to_string(i) + " from '" + vmarg->type_name() +
                         "' to '" + node_typename(narg->type) + "'");
 
@@ -783,9 +792,9 @@ VMValuePtr VM::call(NCall *ncall)
     NFunction* nfunc = static_cast<NFunction*>(ndecl);
 
     if(nfunc->arguments.size() != ncall->arguments.size())
-        return this->argumentError(ncall, nfunc->arguments.size());
+        return this->argumentError(nfunc->name, ncall->arguments, nfunc->arguments);
 
-    if(!this->pushScope(nfunc, ncall))
+    if(!this->pushScope(nfunc->name, nfunc->arguments, ncall->arguments))
         return VMValuePtr();
 
     VMValuePtr res = this->interpret(nfunc->body);
@@ -821,9 +830,14 @@ VMValuePtr VM::error(const string &msg)
 
 VMValuePtr VM::argumentError(NCall *ncall, size_t expected)
 {
-    return this->error("'" + ncall->name->value + "' " +
-                       "expects " + std::to_string(expected) + " arguments, " +
-                       std::to_string(ncall->arguments.size()) + " given");
+    return this->error("'" + ncall->name->value + "' " + "expects " + std::to_string(expected) + " arguments, " +
+                                                                      std::to_string(ncall->arguments.size()) + " given");
+}
+
+VMValuePtr VM::argumentError(NIdentifier* nid, const NodeList& given, const NodeList& expected)
+{
+    return this->error("'" + nid->value + "' " + "expects " + std::to_string(expected.size()) + " arguments, " +
+                                                              std::to_string(given.size()) + " given");
 }
 
 VMValuePtr VM::typeError(Node *n, const string &expected)

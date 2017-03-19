@@ -145,11 +145,12 @@ struct NCompoundType: public NType
 {
     AST_NODE(NCompoundType)
 
-    NCompoundType(const NodeList& fields): NType(anonymous_identifier), members(fields) { is_basic = false; is_compound = true; }
-    NCompoundType(NIdentifier* id, const NodeList& fields): NType(id), members(fields) { is_basic = false; is_compound = true; }
-    NCompoundType(const NodeList& fields, const NodeList& customvars): NType(anonymous_identifier, customvars), members(fields) { is_basic = false; is_compound = true; }
-    NCompoundType(NIdentifier* id, const NodeList& fields, const NodeList& customvars): NType(id, customvars), members(fields) { is_basic = false; is_compound = true; }
+    NCompoundType(const NodeList& arguments, const NodeList& members): NType(anonymous_identifier), arguments(arguments), members(members) { is_basic = false; is_compound = true; }
+    NCompoundType(NIdentifier* id, const NodeList& arguments, const NodeList& members): NType(id), arguments(arguments), members(members) { is_basic = false; is_compound = true; }
+    NCompoundType(const NodeList& arguments, const NodeList& members, const NodeList& customvars): NType(anonymous_identifier, customvars), arguments(arguments), members(members) { is_basic = false; is_compound = true; }
+    NCompoundType(NIdentifier* id, const NodeList& arguments, const NodeList& members, const NodeList& customvars): NType(id, customvars), arguments(arguments), members(members) { is_basic = false; is_compound = true; }
 
+    NodeList arguments;
     NodeList members;
 };
 
@@ -217,10 +218,10 @@ struct NEnum: public NCompoundType
 {
     AST_NODE(NEnum)
 
-    NEnum(const NodeList& members, NType* type): NCompoundType(members), type(type) { this->type = (type ? type : new NScalarType("int", 32)); }
-    NEnum(NIdentifier* id, const NodeList& members, NType* type): NCompoundType(id, members), type(type) { this->type = (type ? type : new NScalarType("int", 32)); }
-    NEnum(const NodeList& members, const NodeList& customvars, NType* type): NCompoundType(members, customvars), type(type) { this->type = (type ? type : new NScalarType("int", 32)); }
-    NEnum(NIdentifier* id, const NodeList& members, const NodeList& customvars, NType* type): NCompoundType(id, members, customvars), type(type) { this->type = (type ? type : new NScalarType("int", 32)); }
+    NEnum(const NodeList& members, NType* type): NCompoundType(NodeList(), members), type(type) { this->type = (type ? type : new NScalarType("int", 32)); }
+    NEnum(NIdentifier* id, const NodeList& members, NType* type): NCompoundType(id, NodeList(), members), type(type) { this->type = (type ? type : new NScalarType("int", 32)); }
+    NEnum(const NodeList& members, const NodeList& customvars, NType* type): NCompoundType(NodeList(), members, customvars), type(type) { this->type = (type ? type : new NScalarType("int", 32)); }
+    NEnum(NIdentifier* id, const NodeList& members, const NodeList& customvars, NType* type): NCompoundType(id, NodeList(), members, customvars), type(type) { this->type = (type ? type : new NScalarType("int", 32)); }
     ~NEnum() { delete_if(type); }
 
     NType* type;
@@ -250,6 +251,7 @@ struct NVariable: public Node
     NIdentifier* name;
     NodeList names;
     NodeList custom_vars;
+    NodeList constructor; // For Struct and Unions
     Node* value;
     Node* size;
     Node* bits;
@@ -419,20 +421,20 @@ struct NStruct: public NCompoundType
 {
     AST_NODE(NStruct)
 
-    NStruct(const NodeList& members): NCompoundType(members) { }
-    NStruct(NIdentifier* id, const NodeList& members): NCompoundType(id, members) { }
-    NStruct(const NodeList& members, const NodeList& customvars): NCompoundType(members, customvars) { }
-    NStruct(NIdentifier* id, const NodeList& members, const NodeList& customvars): NCompoundType(id, members, customvars) { }
+    NStruct(const NodeList& arguments, const NodeList& members): NCompoundType(arguments, members) { }
+    NStruct(NIdentifier* id, const NodeList& arguments, const NodeList& members): NCompoundType(id, arguments, members) { }
+    NStruct(const NodeList& arguments, const NodeList& members, const NodeList& customvars): NCompoundType(arguments, members, customvars) { }
+    NStruct(NIdentifier* id, const NodeList& arguments, const NodeList& members, const NodeList& customvars): NCompoundType(id, arguments, members, customvars) { }
 };
 
 struct NUnion: public NStruct
 {
     AST_NODE(NUnion)
 
-    NUnion(const NodeList& fields): NStruct(fields) { }
-    NUnion(NIdentifier* id, const NodeList& fields): NStruct(id, fields) { }
-    NUnion(const NodeList& fields, const NodeList& customvars): NStruct(fields,  customvars) { }
-    NUnion(NIdentifier* id, const NodeList& fields, const NodeList& customvars): NStruct(id, fields, customvars) { }
+    NUnion(const NodeList& arguments, const NodeList& members): NStruct(arguments, members) { }
+    NUnion(NIdentifier* id, const NodeList& arguments, const NodeList& members): NStruct(id, arguments, members) { }
+    NUnion(const NodeList& arguments, const NodeList& members, const NodeList& customvars): NStruct(arguments, members, customvars) { }
+    NUnion(NIdentifier* id, const NodeList& arguments, const NodeList& members, const NodeList& customvars): NStruct(id, arguments, members, customvars) { }
 };
 
 struct NTypedef: public NType

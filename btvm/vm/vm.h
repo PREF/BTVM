@@ -73,7 +73,7 @@ class VM
         void declareVariable(NVariable* nvar);
         VMValuePtr call(NCall* ncall);
         VMValuePtr callVM(NCall* ncall);
-        VMValuePtr allocType(Node *node, Node* size = NULL);
+        VMValuePtr allocType(Node *node, Node* nsize = NULL, const NodeList& nconstructor = NodeList());
         VMValuePtr allocVariable(NVariable* nvar);
         VMValuePtr variable(NIdentifier* id);
         Node* arraySize(NVariable* nvar);
@@ -81,7 +81,7 @@ class VM
         Node* isDeclared(NIdentifier *nid) const;
         bool isSizeValid(const VMValuePtr& vmvalue);
         bool isVMFunction(NIdentifier* id) const;
-        bool pushScope(NFunction* nfunc, NCall* ncall);
+        bool pushScope(NIdentifier *nid, const NodeList &funcargs, const NodeList &callargs);
         VMCaseMap buildCaseMap(NSwitch* nswitch);
         int64_t getBits(const VMValuePtr& vmvalue);
         int64_t getBits(Node *n);
@@ -92,6 +92,7 @@ class VM
     public: // Error management
         virtual VMValuePtr error(const std::string& msg);
         VMValuePtr argumentError(NCall* ncall, size_t expected);
+        VMValuePtr argumentError(NIdentifier* nid, const NodeList &given, const NodeList &expected);
         VMValuePtr typeError(Node* n, const std::string& expected);
         VMValuePtr typeError(const VMValuePtr& vmvalue, const std::string& expected);
         void syntaxError(const std::string& token, unsigned int line);

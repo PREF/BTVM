@@ -30,6 +30,7 @@
 %type params               { NodeList*        }
 %type decls                { NodeList*        }
 %type expr                 { NodeList*        }
+%type args_decl            { NodeList*        }
 %type custom_vars          { NodeList*        }
 %type custom_var_decl      { NodeList*        }
 %type scalar               { NScalarType*     }
@@ -80,14 +81,17 @@ param(A)              ::= id(B)           id(C) array(D). { A = new NArgument(B,
 
 typedef_decl(A)       ::= TYPEDEF type(B) id(C) array(D) custom_var_decl(E) SEMICOLON. { A = new NTypedef(B, C, *E); B->size = D; delete E; }
 
-struct_decl(A)        ::= STRUCT id(B) O_CURLY struct_stms(C) C_CURLY custom_var_decl(D) SEMICOLON. { A = new NStruct(B, *C, *D); delete C; delete D; }
+struct_decl(A)        ::= STRUCT id(B) args_decl(C) O_CURLY struct_stms(D) C_CURLY custom_var_decl(E) SEMICOLON. { A = new NStruct(B, *C, *D, *E); delete C; delete D; delete E; }
 
-union_decl(A)         ::= UNION id(B) O_CURLY struct_stms(C) C_CURLY custom_var_decl(D) SEMICOLON. { A = new NUnion(B, *C, *D); delete C; delete D; }
+union_decl(A)         ::= UNION id(B) args_decl(C) O_CURLY struct_stms(D) C_CURLY custom_var_decl(E) SEMICOLON. { A = new NUnion(B, *C, *D, *E); delete C; delete D; delete E; }
 
 enum_decl(A)          ::= ENUM enum_type(B) id(C) O_CURLY enum_def(D) C_CURLY SEMICOLON. { A = new NEnum(C, *D, B); delete D; }
 
 custom_var_decl(A)    ::= LT custom_vars(B) GT. { A = B; }
 custom_var_decl(A)    ::= .                     { A = new NodeList(); }
+
+args_decl(A)          ::= O_ROUND params(B) C_ROUND. { A = B; }
+args_decl(A)          ::= .                          { A = new NodeList(); }
 
 // =======================================================
 //                 Variable Declaration
@@ -100,12 +104,13 @@ var_decl(A)           ::= LOCAL   id(B)         var(C)           var_list(D)    
 var_decl(A)           ::=         type(B)       var_no_assign(C) var_list_no_assign(D) custom_var_decl(E) SEMICOLON. { C->type = B; C->custom_vars = *E; C->names = *D; A = C; delete D; delete E; }
 var_decl(A)           ::=         id(B)         var_no_assign(C) var_list_no_assign(D) custom_var_decl(E) SEMICOLON. { C->type = new NType(B); C->names = *D; C->custom_vars = *E; A = C; delete D; delete E; }
 
-var(A)                ::= id(B) array(C).                 { A = new NVariable(B, C); }
-var(A)                ::= id(B) array(C) ASSIGN op_if(D). { A = new NVariable(B, C); A->value = D; }
+var(A)                ::= id(B) array(C).                  { A = new NVariable(B, C); }
+var(A)                ::= id(B) array(C) ASSIGN  op_if(D). { A = new NVariable(B, C); A->value = D; }
 
-var_no_assign(A)      ::= id(B) array(C).        { A = new NVariable(B, C); }
-var_no_assign(A)      ::= id(B) COLON number(C). { A = new NVariable(B, NULL, C); }
-var_no_assign(A)      ::= COLON number(C).       { A = new NVariable(C); }
+var_no_assign(A)      ::= id(B) array(C).                { A = new NVariable(B, C); }
+var_no_assign(A)      ::= id(B) COLON number(C).         { A = new NVariable(B, NULL, C); }
+var_no_assign(A)      ::= id(B) O_ROUND expr(C) C_ROUND. { A = new NVariable(B, NULL); A->constructor = *C; delete C; }
+var_no_assign(A)      ::= COLON number(C).               { A = new NVariable(C); }
 
 array(A)              ::= O_SQUARE expr(B) C_SQUARE. { A = new NBlock(*B); delete B; }
 array(A)              ::= O_SQUARE         C_SQUARE. { A = new NBlock(); }
@@ -146,12 +151,12 @@ type(A)               ::= sign(B) scalar(C).                                    
 type(A)               ::= sign character(B).                                        { A = B; }
 type(A)               ::= string(B).                                                { A = B; }
 type(A)               ::= datetime(B).                                              { A = B; }
-type(A)               ::= STRUCT              id(B) O_CURLY struct_stms(C) C_CURLY. { A = new NStruct(B, *C); delete C; }
-type(A)               ::= UNION               id(B) O_CURLY struct_stms(C) C_CURLY. { A = new NUnion(B, *C); delete C; }
-type(A)               ::= ENUM   enum_type(B) id(C) O_CURLY enum_def(D)    C_CURLY. { A = new NEnum(C, *D, B); delete D; }
-type(A)               ::= STRUCT                    O_CURLY struct_stms(B) C_CURLY. { A = new NStruct(*B); delete B; }
-type(A)               ::= UNION                     O_CURLY struct_stms(B) C_CURLY. { A = new NUnion(*B); delete B; }
-type(A)               ::= ENUM   enum_type(B)       O_CURLY enum_def(C)    C_CURLY. { A = new NEnum(*C, B); delete C; }
+type(A)               ::= STRUCT              id(B) args_decl(C) O_CURLY struct_stms(D) C_CURLY. { A = new NStruct(B, *C, *D); delete C; delete D; }
+type(A)               ::= UNION               id(B) args_decl(C) O_CURLY struct_stms(D) C_CURLY. { A = new NUnion(B, *C, *D); delete C; delete D; }
+type(A)               ::= ENUM   enum_type(B) id(C)              O_CURLY enum_def(D)    C_CURLY. { A = new NEnum(C, *D, B); delete D; }
+type(A)               ::= STRUCT                    args_decl(B) O_CURLY struct_stms(C) C_CURLY. { A = new NStruct(*B, *C); delete B; delete C; }
+type(A)               ::= UNION                     args_decl(B) O_CURLY struct_stms(C) C_CURLY. { A = new NUnion(*B, *C); delete B; delete C; }
+type(A)               ::= ENUM   enum_type(B)                    O_CURLY enum_def(C)    C_CURLY. { A = new NEnum(*C, B); delete C; }
 type(A)               ::= VOID(B).                                                  { A = new NType(B->value); }
 type(A)               ::= BOOL(B).                                                  { A = new NBooleanType(B->value); }
 
@@ -309,6 +314,7 @@ op_pointer(A)         ::= value(B).                                { A = B; }
 // =======================================================
 //                  Basic Declarations
 // =======================================================
+
 value(A)              ::= O_ROUND expr(B) C_ROUND.       { A = new NBlock(*B); delete B; }
 value(A)              ::= id(B) O_ROUND expr(C) C_ROUND. { A = new NCall(B, *C); delete C; }
 value(A)              ::= id(B) O_ROUND C_ROUND.         { A = new NCall(B); }
