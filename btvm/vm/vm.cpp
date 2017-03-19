@@ -587,10 +587,7 @@ void VM::allocType(const VMValuePtr& vmvar, Node *node, Node *nsize, const NodeL
         vmvar->allocate_scalar(nscalar->bits, nscalar->is_signed, nscalar->is_fp, ndecl);
     }
     else if(node_is(ndecl, NStringType))
-    {
-        NStringType* nstring = static_cast<NStringType*>(ndecl);
-        vmvar->allocate_scalar(nstring->bits, nstring->is_signed, false);
-    }
+        vmvar->allocate_string(0, ndecl);
     else if(node_is(ndecl, NBooleanType))
         vmvar->allocate_boolean(ndecl);
     else
