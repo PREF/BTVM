@@ -28,6 +28,7 @@ class BTVM: public VM
 
     private:
         BTEntryPtr buildEntry(const VMValuePtr& vmvalue, const BTEntryPtr &btparent, uint64_t &offset);
+        VMValuePtr readScalar(NCall* ncall, uint64_t bits, bool issigned);
         void initFunctions();
         void initColors();
 
@@ -42,7 +43,14 @@ class BTVM: public VM
         static VMValuePtr vmFileSize(VM *self, NCall* ncall);
         static VMValuePtr vmFTell(VM *self, NCall* ncall);
         static VMValuePtr vmReadBytes(VM *self, NCall* ncall);
+        static VMValuePtr vmReadInt(VM *self, NCall* ncall);
+        static VMValuePtr vmReadInt64(VM *self, NCall* ncall);
+        static VMValuePtr vmReadQuad(VM *self, NCall* ncall);
+        static VMValuePtr vmReadShort(VM *self, NCall* ncall);
         static VMValuePtr vmReadUInt(VM *self, NCall* ncall);
+        static VMValuePtr vmReadUInt64(VM *self, NCall* ncall);
+        static VMValuePtr vmReadUQuad(VM *self, NCall* ncall);
+        static VMValuePtr vmReadUShort(VM *self, NCall* ncall);
         static VMValuePtr vmLittleEndian(VM *self, NCall* ncall);
         static VMValuePtr vmBigEndian(VM *self, NCall* ncall);
         static VMValuePtr vmFSeek(VM *self, NCall* ncall);

@@ -123,6 +123,30 @@ BTEntryPtr BTVM::buildEntry(const VMValuePtr &vmvalue, const BTEntryPtr& btparen
     return btentry;
 }
 
+VMValuePtr BTVM::readScalar(NCall *ncall, uint64_t bits, bool issigned)
+{
+    VMValuePtr pos;
+
+    if(ncall->arguments.size() > 1)
+        return this->error("Expected 0 or 1 arguments, " + std::to_string(ncall->arguments.size()) + " given");
+
+    IO_NoSeek(this->_btvmio);
+
+    if(ncall->arguments.size() == 1)
+    {
+        pos = this->interpret(ncall->arguments.front());
+
+        if(!pos->is_scalar())
+            return this->typeError(pos, "scalar");
+
+        this->_btvmio->seek(pos->ui_value);
+    }
+
+    VMValuePtr vmvalue = VMValue::allocate_scalar(bits, issigned, false);
+    this->_btvmio->read(vmvalue, this->sizeOf(vmvalue));
+    return vmvalue;
+}
+
 void BTVM::initFunctions()
 {
     // Interface Functions: https://www.sweetscape.com/010editor/manual/FuncInterface.htm
@@ -136,8 +160,16 @@ void BTVM::initFunctions()
     this->functions["FileSize"]      = &BTVM::vmFileSize;
     this->functions["FTell"]         = &BTVM::vmFTell;
     this->functions["FSeek"]         = &BTVM::vmFSeek;
-    this->functions["ReadBytes"]     = &BTVM::vmReadBytes;
+    this->functions["ReadInt"]       = &BTVM::vmReadInt;
+    this->functions["ReadInt64"]     = &BTVM::vmReadInt64;
+    this->functions["ReadQuad"]      = &BTVM::vmReadQuad;
+    this->functions["ReadShort"]     = &BTVM::vmReadShort;
     this->functions["ReadUInt"]      = &BTVM::vmReadUInt;
+    this->functions["ReadUInt64"]    = &BTVM::vmReadUInt64;
+    this->functions["ReadUQuad"]     = &BTVM::vmReadUQuad;
+    this->functions["ReadUShort"]    = &BTVM::vmReadUShort;
+    this->functions["ReadBytes"]     = &BTVM::vmReadBytes;
+    this->functions["ReadUShort"]    = &BTVM::vmReadUShort;
     this->functions["LittleEndian"]  = &BTVM::vmLittleEndian;
     this->functions["BigEndian"]     = &BTVM::vmBigEndian;
 
@@ -357,27 +389,11 @@ VMValuePtr BTVM::vmReadBytes(VM *self, NCall *ncall)
     return VMValuePtr();
 }
 
-VMValuePtr BTVM::vmReadUInt(VM *self, NCall *ncall)
-{
-    VMValuePtr pos;
-    BTVM* btvm = static_cast<BTVM*>(self);
-
-    if(ncall->arguments.size() > 1)
-        return btvm->error("Expected 0 or 1 arguments, " + std::to_string(ncall->arguments.size()) + " given");
-
-    IO_NoSeek(btvm->_btvmio);
-
-    if(ncall->arguments.size() == 1)
-    {
-        pos = self->interpret(ncall->arguments.front());
-
-        if(!pos->is_scalar())
-            return self->typeError(pos, "scalar");
-
-        btvm->_btvmio->seek(pos->ui_value);
-    }
-
-    VMValuePtr vmvalue = VMValue::allocate_scalar(32, false, false);
-    btvm->_btvmio->read(vmvalue, btvm->sizeOf(vmvalue));
-    return vmvalue;
-}
+VMValuePtr BTVM::vmReadInt(VM *self, NCall *ncall)    { return static_cast<BTVM*>(self)->readScalar(ncall, 32, true);  }
+VMValuePtr BTVM::vmReadInt64(VM *self, NCall *ncall)  { return static_cast<BTVM*>(self)->readScalar(ncall, 64, true);  }
+VMValuePtr BTVM::vmReadQuad(VM *self, NCall *ncall)   { return static_cast<BTVM*>(self)->vmReadInt64(self, ncall);     }
+VMValuePtr BTVM::vmReadShort(VM *self, NCall *ncall)  { return static_cast<BTVM*>(self)->readScalar(ncall, 16, true);  }
+VMValuePtr BTVM::vmReadUInt(VM *self, NCall *ncall)   { return static_cast<BTVM*>(self)->readScalar(ncall, 32, false); }
+VMValuePtr BTVM::vmReadUInt64(VM *self, NCall *ncall) { return static_cast<BTVM*>(self)->readScalar(ncall, 64, false); }
+VMValuePtr BTVM::vmReadUQuad(VM *self, NCall *ncall)  { return static_cast<BTVM*>(self)->vmReadUInt64(self, ncall);    }
+VMValuePtr BTVM::vmReadUShort(VM *self, NCall *ncall) { return static_cast<BTVM*>(self)->readScalar(ncall, 16, false); }
