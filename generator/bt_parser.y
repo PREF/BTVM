@@ -214,11 +214,14 @@ normal_stm(A)         ::= DO stm(B) WHILE O_ROUND expr(C) C_ROUND SEMICOLON.    
 normal_stm(A)         ::= SWITCH O_ROUND expr(B) C_ROUND O_CURLY case_stms(C) C_CURLY. { A = new NSwitch(new NBlock(*B), *C); delete B, delete C; }
 normal_stm(A)         ::= var_decl(B).                                                 { A = B; }
 normal_stm(A)         ::= block(B).                                                    { A = B; }
+normal_stm(A)         ::= return_stm(B).                                               { A = B; }
 normal_stm(A)         ::= expr(B) SEMICOLON.                                           { A = new NBlock(*B); delete B; }
 normal_stm(A)         ::= BREAK SEMICOLON.                                             { A = new NVMState(VMState::Break); }
 normal_stm(A)         ::= CONTINUE SEMICOLON.                                          { A = new NVMState(VMState::Continue); }
-normal_stm(A)         ::= RETURN expr(B) SEMICOLON.                                    { A = new NReturn(new NBlock(*B)); delete B; }
 normal_stm(A)         ::= SEMICOLON.                                                   { A = new NBlock(); }
+
+return_stm(A)         ::= RETURN expr(B) SEMICOLON. { A = new NReturn(new NBlock(*B)); delete B; }
+return_stm(A)         ::= RETURN SEMICOLON.         { A = new NReturn(new NBlock()); }
 
 arg(A)                ::= expr(B).                 { A = new NBlock(*B); delete B; }
 arg(A)                ::= .                        { A = new NBlock(); }
