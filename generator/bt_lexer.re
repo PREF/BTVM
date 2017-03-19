@@ -4,7 +4,7 @@
 #define TOKEN_STRING string(start, this->_cursor - start)
 #define TOKEN_STRING_LITERAL string(start + 1, this->_cursor - (start + 2))
 
-#define UNKNOWN_TOKEN cout << "Unknown token: " << TOKEN_STRING << endl; \
+#define UNKNOWN_TOKEN cout << "Unknown token '" << TOKEN_STRING << "' near line " << currentline << endl; \
                               continue;
 
 #define TOKENIZE(token_type) token.value = TOKEN_STRING; \
