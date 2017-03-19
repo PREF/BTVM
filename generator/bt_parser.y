@@ -69,6 +69,7 @@ func_decl(A)          ::= type(B) id(C) O_ROUND           C_ROUND            blo
 
 params(A)             ::= params COMMA param(B). { A->push_back(B); }
 params(A)             ::= param(B).              { A = new NodeList(); A->push_back(B); }
+params(A)             ::= VOID.                  { A = new NodeList(); }
 
 param(A)              ::= type(B) BIN_AND id(C) array(D). { A = new NArgument(B, C, D); A->by_reference = true; }
 param(A)              ::= type(B)         id(C) array(D). { A = new NArgument(B, C, D); }
