@@ -45,7 +45,7 @@ list<BTLexer::Token> BTLexer::lex()
             re2c:yyfill:enable = 0;
 
             LINE_FEED      = [\n];
-            WHITESPACE     = [\r\t ]+;
+            WHITESPACE     = [\r\t\\ ]+;
             LITERAL_REAL   = [0-9]*"."[0-9]* | [0-9]+".";
             LITERAL_OCT    = "0"[0-7]*;
             LITERAL_DEC    = [1-9][0-9]*;
