@@ -4,9 +4,13 @@
 
 #define BUFFER_SIZE 4096
 #define align_to(x, a) (x + (a - (x % a)))
+#define is_bigendian() (*reinterpret_cast<const char*>(&BTVMIO::PLATFORM_ENDIANNESS) == 0)
 
-BTVMIO::BTVMIO(): _endianness(BTEndianness::PlatformEndian), _buffersize(0)
+const int BTVMIO::PLATFORM_ENDIANNESS = 1;
+
+BTVMIO::BTVMIO(): _buffersize(0)
 {
+    this->_platformendianness = this->_endianness = is_bigendian() ? BTEndianness::BigEndian : BTEndianness::LittleEndian;
     this->_buffer = static_cast<uint8_t*>(malloc(BUFFER_SIZE));
 }
 
@@ -158,18 +162,18 @@ void BTVMIO::readBits(uint8_t *buffer, uint64_t bitscount)
     }
 }
 
-void BTVMIO::elaborateEndianness(const VMValuePtr &vmvalue)
+void BTVMIO::elaborateEndianness(const VMValuePtr &vmvalue) const
 {
     if(vmvalue->value_type == VMValueType::s16)
-        *vmvalue->value_ref<int64_t>() = this->cpuEndianness(*vmvalue->value_ref<int16_t>());
+        *vmvalue->value_ref<uint64_t>() = this->elaborateEndianness(*vmvalue->value_ref<int16_t>());
     else if((vmvalue->value_type == VMValueType::s32) || (vmvalue->value_type == VMValueType::Float))
-        *vmvalue->value_ref<int64_t>() = this->cpuEndianness(*vmvalue->value_ref<int32_t>());
+        *vmvalue->value_ref<uint64_t>() = this->elaborateEndianness(*vmvalue->value_ref<int32_t>());
     else if((vmvalue->value_type == VMValueType::s64) || (vmvalue->value_type == VMValueType::Double))
-        *vmvalue->value_ref<int64_t>() = this->cpuEndianness(*vmvalue->value_ref<int64_t>());
+        *vmvalue->value_ref<uint64_t>() = this->elaborateEndianness(*vmvalue->value_ref<int64_t>());
     else if(vmvalue->value_type == VMValueType::u16)
-        *vmvalue->value_ref<uint64_t>() = this->cpuEndianness(*vmvalue->value_ref<uint16_t>());
+        *vmvalue->value_ref<uint64_t>() = this->elaborateEndianness(*vmvalue->value_ref<uint16_t>());
     else if(vmvalue->value_type == VMValueType::u32)
-        *vmvalue->value_ref<uint64_t>() = this->cpuEndianness(*vmvalue->value_ref<uint32_t>());
+        *vmvalue->value_ref<uint64_t>() = this->elaborateEndianness(*vmvalue->value_ref<uint32_t>());
     else if(vmvalue->value_type == VMValueType::u64)
-        *vmvalue->value_ref<uint64_t>() = this->cpuEndianness(*vmvalue->value_ref<uint64_t>());
+        *vmvalue->value_ref<uint64_t>() = this->elaborateEndianness(*vmvalue->value_ref<uint64_t>());
 }

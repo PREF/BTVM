@@ -214,7 +214,7 @@ VMValueType::VMType value_type(Node* node)
 {
     VMValueType::VMType valuetype = VMValueType::Null;
 
-    if(node_is(node, NScalarType))
+    if(node_inherits(node, NScalarType))
     {
         NScalarType* nscalartype = static_cast<NScalarType*>(node);
         valuetype = VMFunctions::scalar_type(nscalartype->bits, nscalartype->is_signed, nscalartype->is_fp);
@@ -244,7 +244,7 @@ bool type_cast(const VMValuePtr &vmvalue, Node* node)
     if(vmvalue->is_compound())
         return node_typename(vmvalue->value_typedef) == node_typename(node);
 
-    if(node_is(node, NScalarType) && vmvalue->is_scalar())
+    if(node_inherits(node, NScalarType) && vmvalue->is_scalar())
     {
         NScalarType* nscalartype = static_cast<NScalarType*>(node);
 

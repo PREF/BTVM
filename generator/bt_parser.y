@@ -169,8 +169,9 @@ string(A)             ::= WSTRING(B).   { A = new NStringType(B->value); }
 string(A)             ::= STRING(B).    { A = new NStringType(B->value); }
 string(A)             ::= character(B). { A = B; }
 
-character(A)          ::= CHAR(B).   { A = new NStringType(B->value); }
-character(A)          ::= WCHAR(B).  { A = new NStringType(B->value); }
+character(A)          ::= CHAR(B).   { A = new NCharType(B->value); }
+character(A)          ::= WCHAR(B).  { A = new NCharType(B->value); }
+character(A)          ::= BYTE(B).   { A = new NCharType(B->value); }
 
 datetime(A)           ::= TIME(B).     { A = new NTime(B->value); }
 datetime(A)           ::= DOSDATE(B).  { A = new NDosDate(B->value); }
@@ -178,7 +179,6 @@ datetime(A)           ::= DOSTIME(B).  { A = new NDosTime(B->value); }
 datetime(A)           ::= OLETIME(B).  { A = new NOleTime(B->value); }
 datetime(A)           ::= FILETIME(B). { A = new NFileTime(B->value); }
 
-scalar(A)             ::= BYTE(B).   { A = new NScalarType(B->value, 8); }
 scalar(A)             ::= UCHAR(B).  { A = new NScalarType(B->value, 8);  A->is_signed = false; }
 scalar(A)             ::= UBYTE(B).  { A = new NScalarType(B->value, 8);  A->is_signed = false; }
 scalar(A)             ::= SHORT(B).  { A = new NScalarType(B->value, 16); }

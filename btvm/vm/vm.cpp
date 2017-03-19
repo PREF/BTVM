@@ -501,7 +501,7 @@ void VM::allocType(const VMValuePtr& vmvar, Node *node, Node *nsize, const NodeL
         if(!this->isSizeValid(vmsize))
             return;
 
-        if(!node_is(ndecl, NStringType))
+        if(!node_is(ndecl, NCharType))
         {
             vmvar->allocate_array(vmsize->ui_value, ndecl);
 
@@ -586,10 +586,13 @@ void VM::allocType(const VMValuePtr& vmvar, Node *node, Node *nsize, const NodeL
         NScalarType* nscalar = static_cast<NScalarType*>(ndecl);
         vmvar->allocate_scalar(nscalar->bits, nscalar->is_signed, nscalar->is_fp, ndecl);
     }
+    else if(node_is(ndecl, NStringType))
+    {
+        NStringType* nstring = static_cast<NStringType*>(ndecl);
+        vmvar->allocate_scalar(nstring->bits, nstring->is_signed, false);
+    }
     else if(node_is(ndecl, NBooleanType))
         vmvar->allocate_boolean(ndecl);
-    else if(node_is(ndecl, NStringType))
-        vmvar->allocate_string(0, ndecl);
     else
         throw std::runtime_error("Unknown type: '" + node_typename(ndecl) + "'");
 }
@@ -825,6 +828,20 @@ Node *VM::isDeclared(NIdentifier* nid) const
         auto it = vmscope.declarations.find(nid->value);
         return it != vmscope.declarations.end() ? it->second : NULL;
     });
+}
+
+bool VM::isLocal(Node *node) const
+{
+    if(!node_is(node, NVariable))
+        return false;
+
+    NVariable* nvar = static_cast<NVariable*>(node);
+    return nvar->is_const || nvar->is_local;
+}
+
+bool VM::isLocal(const VMValuePtr &vmvalue) const
+{
+    return vmvalue->is_local() || vmvalue->is_const();
 }
 
 bool VM::isVMFunction(NIdentifier *id) const

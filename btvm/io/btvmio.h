@@ -59,40 +59,32 @@ class BTVMIO
         virtual uint64_t readData(uint8_t* buffer, uint64_t size) = 0;
 
     private:
-        template<typename T> T cpuEndianness(T value) const;
-        void elaborateEndianness(const VMValuePtr &vmvalue);
+        template<typename T> T elaborateEndianness(T valueref) const;
+        void elaborateEndianness(const VMValuePtr &vmvalue) const;
 
     private:
+        static const int PLATFORM_ENDIANNESS;
+        int _platformendianness;
         int _endianness;
         BitCursor _cursor;
         uint64_t _buffersize;
         uint8_t* _buffer;
 };
 
-template<typename T> T BTVMIO::cpuEndianness(T value) const
+template<typename T> T BTVMIO::elaborateEndianness(T value) const
 {
-    T cpuvalue = 0;
-    uint8_t* pval = reinterpret_cast<uint8_t*>(&cpuvalue);
-
-    if(this->_endianness == BTEndianness::LittleEndian) // CPU -> LE
-    {
-        for(size_t i = 0; i < sizeof(T); i++)
-        {
-            T shift = i * PLATFORM_BITS, mask = 0xFF << shift;
-            pval[i] = (value & mask) >> shift;
-        }
-    }
-    else if(this->_endianness == BTEndianness::BigEndian) // CPU -> BE
-    {
-        for(size_t i = 0, j = sizeof(T) - 1; i < sizeof(T); i++, j--)
-        {
-            T shift = j * PLATFORM_BITS, mask = 0xFF << shift;
-            pval[i] = (value & mask) >> shift;
-        }
-    }
-    else
+    if(this->_platformendianness == this->_endianness)
         return value;
 
-    return cpuvalue;
+    uint8_t *start, *end;
+
+    for(start = reinterpret_cast<uint8_t*>(&value), end = start + sizeof(T) - 1; start < end; ++start, --end)
+    {
+        uint8_t swap = *start;
+        *start = *end;
+        *end = swap;
+    }
+
+    return value;
 }
 #endif // BTVMIO_H

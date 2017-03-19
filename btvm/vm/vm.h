@@ -79,6 +79,8 @@ class VM
         Node* arraySize(NVariable* nvar);
         Node* declaration(Node* node);
         Node* isDeclared(NIdentifier *nid) const;
+        bool isLocal(Node* node) const;
+        bool isLocal(const VMValuePtr& vmvalue) const;
         bool isSizeValid(const VMValuePtr& vmvalue);
         bool isVMFunction(NIdentifier* id) const;
         bool pushScope(NIdentifier *nid, const NodeList &funcargs, const NodeList &callargs);
@@ -156,6 +158,9 @@ template<typename T> int64_t VM::compoundSize(const std::vector<T> &v)
 
     for(auto it = v.begin(); it != v.end(); it++)
     {
+        if(this->isLocal(*it))
+            continue;
+
         uint64_t mbits = this->sizeOf(*it) * PLATFORM_BITS;
         boundarybits = std::max(mbits, boundarybits);
         int64_t bits = this->getBits(*it);

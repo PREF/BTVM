@@ -136,9 +136,10 @@ struct NBasicType: public NType
 {
     AST_NODE(NBasicType)
 
-    NBasicType(const std::string& name, uint64_t bits): NType(name), bits(bits) { is_basic = true; }
+    NBasicType(const std::string& name, uint64_t bits): NType(name), bits(bits), is_signed(true) { is_basic = true; }
 
     uint64_t bits;
+    bool is_signed;
 };
 
 struct NCompoundType: public NType
@@ -165,18 +166,23 @@ struct NScalarType: public NBasicType
 {
     AST_NODE(NScalarType)
 
-    NScalarType(const std::string& name, uint64_t bits): NBasicType(name, bits), is_signed(true), is_fp(false) { }
+    NScalarType(const std::string& name, uint64_t bits): NBasicType(name, bits), is_fp(false) { }
 
-    bool is_signed;
     bool is_fp;
 };
 
+struct NCharType: public NScalarType
+{
+    AST_NODE(NCharType)
+
+    NCharType(const std::string& name): NScalarType(name, 8) { }
+};
 
 struct NStringType: public NBasicType
 {
     AST_NODE(NStringType)
 
-    NStringType(const std::string& name): NBasicType(name, 8) { }
+    NStringType(const std::string& name): NBasicType(name, 8) { is_signed = true; }
 };
 
 struct NDosDate: public NScalarType
