@@ -20,7 +20,7 @@ struct delete_node { template<typename T> void operator()(T t) { delete t; } };
 
 #define anonymous_type_prefix        "__anonymous_decl__"
 #define anonymous_identifier         (new NIdentifier(anonymous_type_prefix + std::to_string(global_id++) + "__"))
-#define is_anonymous_identifier(sid) (sid.find(anonymous_type_prefix) == 0)
+#define is_anonymous_identifier(nid) (nid->value.find(anonymous_type_prefix) == 0)
 
 #define node_s_typename(n)  #n
 #define node_typename(n)    ((n)->__type__())

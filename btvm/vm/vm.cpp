@@ -436,7 +436,7 @@ void VM::declare(Node *node)
         return;
     }
 
-    if(is_anonymous_identifier(nid->value)) // Skip anonymous IDs
+    if(is_anonymous_identifier(nid)) // Skip anonymous IDs
         return;
 
     Node* ndecl = this->isDeclared(nid);
