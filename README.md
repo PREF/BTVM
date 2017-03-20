@@ -6,6 +6,7 @@ BTVM is in early state, lexing and parsing works on some scripts:
 * BMP Format
 * WAV Format
 * ZIP Format
+* EXE Format
 
 A detailed wiki page about BTVM's status will be available soon.
 
