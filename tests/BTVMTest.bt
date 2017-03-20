@@ -2,6 +2,7 @@
 //           HELPER FUNCTIONS
 // --------------------------------------
 
+enum                    { ZERO_A, ONE_A, TWO_A, THREE_A, TEN_A = 10, ELEVEN_A };
 enum UntypedEnum        { ZERO, ONE, TWO, THREE, TEN = 10, ELEVEN };
 enum <ushort> TypedEnum { ZERO_T, ONE_T, TWO_T, THREE_T, TEN_T = 10, ELEVEN_T };
 
@@ -132,6 +133,18 @@ void test_typed_enum()
 
     Printf("Typed enum size [variable]...");
     __btvm_test__(sizeof(tenum) == 2);
+}
+
+void test_anonymous_enum()
+{
+    Printf("Anonymous enum values...");
+
+    __btvm_test__((ZERO_A   == 0)  &&
+                  (ONE_A    == 1)  &&
+                  (TWO_A    == 2)  &&
+                  (THREE_A  == 3)  &&
+                  (TEN_A    == 10) &&
+                  (ELEVEN_A == 11));
 }
 
 void test_math_expressions()
@@ -347,6 +360,7 @@ test_multivars();
 test_array();
 test_untyped_enum();
 test_typed_enum();
+test_anonymous_enum();
 test_math_expressions();
 test_loop();
 test_conditional();
