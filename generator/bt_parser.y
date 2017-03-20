@@ -88,6 +88,7 @@ union_decl(A)         ::= UNION id(B) args_decl(C) O_CURLY struct_stms(D) C_CURL
 
 enum_decl(A)          ::= ENUM enum_type(B) id(C) O_CURLY enum_def(D) C_CURLY SEMICOLON. { A = new NEnum(C, *D, B); delete D; }
 enum_decl(A)          ::= ENUM enum_type(B)       O_CURLY enum_def(C) C_CURLY SEMICOLON. { A = new NEnum(*C, B); delete C; }
+enum_decl(A)          ::= ENUM type(B)            O_CURLY enum_def(C) C_CURLY SEMICOLON. { A = new NEnum(*C, B); delete C; }
 
 custom_var_decl(A)    ::= LT custom_vars(B) GT. { A = B; }
 custom_var_decl(A)    ::= .                     { A = new NodeList(); }
@@ -149,18 +150,20 @@ custom_vars(A)        ::= custom_var(B).                   { A = new NodeList();
 custom_var(A)         ::= IDENTIFIER(B) ASSIGN id(C).      { A = new NCustomVariable(B->value, C); }
 custom_var(A)         ::= IDENTIFIER(B) ASSIGN literal(C). { A = new NCustomVariable(B->value, C); }
 
-type(A)               ::= sign(B) scalar(C).                                        { if(B != -1) C->is_signed = B; A = C; }
-type(A)               ::= sign character(B).                                        { A = B; }
-type(A)               ::= string(B).                                                { A = B; }
-type(A)               ::= datetime(B).                                              { A = B; }
+type(A)               ::= sign(B) scalar(C).                                                     { if(B != -1) C->is_signed = B; A = C; }
+type(A)               ::= sign character(B).                                                     { A = B; }
+type(A)               ::= string(B).                                                             { A = B; }
+type(A)               ::= datetime(B).                                                           { A = B; }
 type(A)               ::= STRUCT              id(B) args_decl(C) O_CURLY struct_stms(D) C_CURLY. { A = new NStruct(B, *C, *D); delete C; delete D; }
 type(A)               ::= UNION               id(B) args_decl(C) O_CURLY struct_stms(D) C_CURLY. { A = new NUnion(B, *C, *D); delete C; delete D; }
 type(A)               ::= ENUM   enum_type(B) id(C)              O_CURLY enum_def(D)    C_CURLY. { A = new NEnum(C, *D, B); delete D; }
+type(A)               ::= ENUM   enum_type(B)                    O_CURLY enum_def(C)    C_CURLY. { A = new NEnum(*C, B); delete C; }
+type(A)               ::= ENUM   type(B)                         O_CURLY enum_def(C)    C_CURLY. { A = new NEnum(*C, B); delete C; }
 type(A)               ::= STRUCT                    args_decl(B) O_CURLY struct_stms(C) C_CURLY. { A = new NStruct(*B, *C); delete B; delete C; }
 type(A)               ::= UNION                     args_decl(B) O_CURLY struct_stms(C) C_CURLY. { A = new NUnion(*B, *C); delete B; delete C; }
 type(A)               ::= ENUM   enum_type(B)                    O_CURLY enum_def(C)    C_CURLY. { A = new NEnum(*C, B); delete C; }
-type(A)               ::= VOID(B).                                                  { A = new NType(B->value); }
-type(A)               ::= BOOL(B).                                                  { A = new NBooleanType(B->value); }
+type(A)               ::= VOID(B).                                                               { A = new NType(B->value); }
+type(A)               ::= BOOL(B).                                                               { A = new NBooleanType(B->value); }
 
 sign(A)               ::= UNSIGNED. { A =  0; }
 sign(A)               ::= SIGNED.   { A =  1; }
