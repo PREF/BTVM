@@ -40,7 +40,10 @@ inline int state_check(int* state)
         return *state;
 
     int s = *state;
-    *state = VMState::NoState;
+
+    if((*state != VMState::Return) && (*state != VMState::Error))
+        *state = VMState::NoState;
+
     return s;
 }
 
