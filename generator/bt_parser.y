@@ -161,7 +161,6 @@ type(A)               ::= ENUM   enum_type(B)                    O_CURLY enum_de
 type(A)               ::= ENUM   type(B)                         O_CURLY enum_def(C)    C_CURLY. { A = new NEnum(*C, B); delete C; }
 type(A)               ::= STRUCT                    args_decl(B) O_CURLY struct_stms(C) C_CURLY. { A = new NStruct(*B, *C); delete B; delete C; }
 type(A)               ::= UNION                     args_decl(B) O_CURLY struct_stms(C) C_CURLY. { A = new NUnion(*B, *C); delete B; delete C; }
-type(A)               ::= ENUM   enum_type(B)                    O_CURLY enum_def(C)    C_CURLY. { A = new NEnum(*C, B); delete C; }
 type(A)               ::= VOID(B).                                                               { A = new NType(B->value); }
 type(A)               ::= BOOL(B).                                                               { A = new NBooleanType(B->value); }
 
