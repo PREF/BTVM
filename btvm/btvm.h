@@ -24,7 +24,6 @@ class BTVM: public VM
     protected:
         virtual void print(const std::string& s);
         virtual void readValue(const VMValuePtr &vmvar, uint64_t size, bool seek);
-        virtual void processFormat(const VMValuePtr& vmvar);
 
     private:
         BTEntryPtr buildEntry(const VMValuePtr& vmvalue, const BTEntryPtr &btparent, uint64_t &offset);
@@ -67,7 +66,6 @@ class BTVM: public VM
 
     private:
         std::unordered_map<std::string, uint32_t> _colors;
-        std::vector<VMValuePtr> _allocations;
         ColorMap _backcolors;
         ColorMap _forecolors;
         BTVMIO* _btvmio;

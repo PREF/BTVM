@@ -101,7 +101,6 @@ class VM
 
     protected:
         virtual void readValue(const VMValuePtr& vmvar, uint64_t size, bool seek) = 0;
-        virtual void processFormat(const VMValuePtr& vmvar) = 0;
         int64_t sizeOf(const VMValuePtr& vmvalue);
         int64_t sizeOf(NIdentifier* nid);
         int64_t sizeOf(NVariable* nvar);
@@ -121,6 +120,7 @@ class VM
         NBlock* _ast;
 
     protected:
+        std::vector<VMValuePtr> allocations;
         VMFunctionsMap functions;
         int state;
 };

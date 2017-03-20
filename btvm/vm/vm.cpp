@@ -39,6 +39,7 @@ void VM::evaluate(const string &code)
         delete this->_ast;
 
     this->state = VMState::NoState;
+    this->allocations.clear();
     VMUnused(code);
 }
 
@@ -613,7 +614,7 @@ void VM::allocVariable(const VMValuePtr& vmvar, NVariable *nvar)
         this->readValue(vmvar, this->_declarationstack.empty() || !this->_declarationstack.back()->is_union());
 
         if(this->_declarationstack.empty())
-            this->processFormat(vmvar);
+            this->allocations.push_back(vmvar);
     }
     else if(nvar->value)
     {
@@ -641,6 +642,15 @@ VMValuePtr VM::variable(NIdentifier *nid)
 
            if(vmvalue)
                break;
+       }
+   }
+
+   for(auto it = this->allocations.rbegin(); it != this->allocations.rend(); it++)
+   {
+       if((*it)->value_id == nid->value)
+       {
+           vmvalue = *it;
+           break;
        }
    }
 

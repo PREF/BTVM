@@ -31,7 +31,6 @@ BTVM::~BTVM()
 void BTVM::evaluate(const string &code)
 {
     VM::evaluate(code);
-    this->_allocations.clear();
 
     BTLexer lexer(code.c_str());
     std::list<BTLexer::Token> tokens = lexer.lex();
@@ -62,11 +61,11 @@ BTEntryList BTVM::format()
 
         uint64_t offset = 0;
 
-        for(auto it = this->_allocations.begin(); it != this->_allocations.end(); it++)
+        for(auto it = this->allocations.begin(); it != this->allocations.end(); it++)
             btfmt.push_back(this->buildEntry(*it, NULL, offset));
     }
     else
-        this->_allocations.clear();
+        this->allocations.clear();
 
     return btfmt;
 }
@@ -86,11 +85,6 @@ void BTVM::readValue(const VMValuePtr& vmvar, uint64_t size, bool seek)
     }
 
     this->_btvmio->read(vmvar, size);
-}
-
-void BTVM::processFormat(const VMValuePtr &vmvar)
-{
-    this->_allocations.push_back(vmvar);
 }
 
 BTEntryPtr BTVM::buildEntry(const VMValuePtr &vmvalue, const BTEntryPtr& btparent, uint64_t& offset)
