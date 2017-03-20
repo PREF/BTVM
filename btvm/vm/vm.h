@@ -68,6 +68,7 @@ class VM
         VMValuePtr interpret(NReturn* nreturn);
         VMValuePtr interpret(NCast* ncast);
         VMValuePtr interpret(NSizeOf* nsizeof);
+        VMValuePtr interpret(NEnum* nenum);
         void declare(Node* node);
         void declareVariables(NVariable* nvar);
         void declareVariable(NVariable* nvar);
@@ -75,6 +76,7 @@ class VM
         VMValuePtr callVM(NCall* ncall);
         void allocType(const VMValuePtr& vmvar, Node *node, Node* nsize = NULL, const NodeList& nconstructor = NodeList());
         void allocVariable(const VMValuePtr &vmvar, NVariable* nvar);
+        void allocEnum(NEnum* nenum, std::function<void(const VMValuePtr&)> cb);
         VMValuePtr variable(NIdentifier* id);
         Node* arraySize(NVariable* nvar);
         Node* declaration(Node* node);

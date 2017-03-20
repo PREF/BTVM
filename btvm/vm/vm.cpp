@@ -9,6 +9,8 @@ using namespace std;
 #define btv_eq_lr_op(op) { btv = lbtv; \
                            btv->assign(*btv op *rbtv); }
 
+#define CurrentScope() (this->_scopestack.empty() ? this->_globalscope : this->_scopestack.back())
+
 VM::VM(): _ast(NULL), state(VMState::NoState)
 {
 
@@ -346,6 +348,19 @@ VMValuePtr VM::interpret(NSizeOf *nsizeof)
     return VMValue::allocate_literal(this->sizeOf(nsizeof->expression));
 }
 
+VMValuePtr VM::interpret(NEnum *nenum)
+{
+    if(is_anonymous_identifier(nenum->name))
+    {
+        VMScope& vmscope = CurrentScope();
+        this->allocEnum(nenum, [&vmscope](const VMValuePtr& vmvalue) { vmscope.variables[vmvalue->value_id] = VMValue::copy_value(*vmvalue); });
+    }
+    else
+        this->declare(nenum);
+
+    return VMValuePtr();
+}
+
 VMValuePtr VM::interpret(Node *node)
 {
     if(this->state == VMState::Error)
@@ -353,6 +368,8 @@ VMValuePtr VM::interpret(Node *node)
 
     if(node_is(node, NBlock))
         return this->interpret(static_cast<NBlock*>(node)->statements);
+    else if(node_is(node, NEnum))
+        return this->interpret(static_cast<NEnum*>(node));
     else if(node_inherits(node, NType) || node_is(node, NFunction))
         this->declare(node);
     else if(node_is(node, NVariable))
@@ -447,7 +464,7 @@ void VM::declare(Node *node)
         return;
     }
 
-    VMScope& vmscope = this->_scopestack.empty() ? this->_globalscope : this->_scopestack.back();
+    VMScope& vmscope = CurrentScope();
     vmscope.declarations[nid->value] = ntype;
 }
 
@@ -479,7 +496,7 @@ void VM::declareVariable(NVariable *nvar)
         return;
     }
 
-    VMScope& scope = this->_scopestack.empty() ? this->_globalscope : this->_scopestack.back();
+    VMScope& scope = CurrentScope();
     auto it = scope.variables.find(vmvar->value_id);
 
     if(it != scope.variables.end())
@@ -550,38 +567,9 @@ void VM::allocType(const VMValuePtr& vmvar, Node *node, Node *nsize, const NodeL
     }
     else if(node_is(ndecl, NEnum))
     {
-        VMValuePtr vmenumval;
         NEnum* nenum = static_cast<NEnum*>(ndecl);
-
         vmvar->allocate_type(VMValueType::Enum, ndecl);
-
-        for(auto it = nenum->members.begin(); it != nenum->members.end(); it++)
-        {
-            if(!node_is(*it, NEnumValue))
-            {
-                this->error("Unexpected enum-value of type '" + node_typename(*it) + "'");
-                return;
-            }
-
-            NEnumValue* nenumval = static_cast<NEnumValue*>(*it);
-
-            if(nenumval->value)
-                vmenumval = this->interpret(nenumval->value);
-            else
-            {
-                if(!vmenumval)
-                {
-                    vmenumval = VMValue::allocate();
-                    this->allocType(vmenumval, nenum->type);
-                }
-                else
-                    (*vmenumval)++;
-            }
-
-            vmenumval->value_typedef = nenum->type;
-            vmenumval->value_id = nenumval->name->value;
-            vmvar->m_value.push_back(VMValue::copy_value(*vmenumval));
-        }
+        this->allocEnum(nenum, [vmvar](const VMValuePtr& vmvalue) { vmvar->m_value.push_back(VMValue::copy_value(*vmvalue)); });
     }
     else if(node_inherits(ndecl, NScalarType))
     {
@@ -627,6 +615,40 @@ void VM::allocVariable(const VMValuePtr& vmvar, NVariable *nvar)
         }
 
         vmvar->assign(*vmvalue);
+    }
+}
+
+void VM::allocEnum(NEnum *nenum, std::function<void(const VMValuePtr &)> cb)
+{
+    VMValuePtr vmenumval;
+
+    for(auto it = nenum->members.begin(); it != nenum->members.end(); it++)
+    {
+        if(!node_is(*it, NEnumValue))
+        {
+            this->error("Unexpected enum-value of type '" + node_typename(*it) + "'");
+            return;
+        }
+
+        NEnumValue* nenumval = static_cast<NEnumValue*>(*it);
+
+        if(nenumval->value)
+            vmenumval = this->interpret(nenumval->value);
+        else
+        {
+            if(!vmenumval)
+            {
+                vmenumval = VMValue::allocate();
+                this->allocType(vmenumval, nenum->type);
+            }
+            else
+                (*vmenumval)++;
+        }
+
+        vmenumval->value_flags |= VMValueFlags::Const;
+        vmenumval->value_typedef = nenum->type;
+        vmenumval->value_id = nenumval->name->value;
+        cb(vmenumval);
     }
 }
 

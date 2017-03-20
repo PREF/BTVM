@@ -87,6 +87,7 @@ struct_decl(A)        ::= STRUCT id(B) args_decl(C) O_CURLY struct_stms(D) C_CUR
 union_decl(A)         ::= UNION id(B) args_decl(C) O_CURLY struct_stms(D) C_CURLY custom_var_decl(E) SEMICOLON. { A = new NUnion(B, *C, *D, *E); delete C; delete D; delete E; }
 
 enum_decl(A)          ::= ENUM enum_type(B) id(C) O_CURLY enum_def(D) C_CURLY SEMICOLON. { A = new NEnum(C, *D, B); delete D; }
+enum_decl(A)          ::= ENUM enum_type(B)       O_CURLY enum_def(C) C_CURLY SEMICOLON. { A = new NEnum(*C, B); delete C; }
 
 custom_var_decl(A)    ::= LT custom_vars(B) GT. { A = B; }
 custom_var_decl(A)    ::= .                     { A = new NodeList(); }
