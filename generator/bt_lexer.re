@@ -50,6 +50,7 @@ list<BTLexer::Token> BTLexer::lex()
             LITERAL_OCT    = "0"[0-7]*;
             LITERAL_DEC    = [1-9][0-9]*;
             LITERAL_HEX    = "0x"[0-9a-fA-F]+;
+            LITERAL_CHAR   = [L]?"'"("."|[^\"])"'";
             LITERAL_STRING = [L]?"\""("."|[^\"])*"\"";
             IDENTIFIER     = [a-zA-Z_][a-zA-Z_0-9]*;
             LINE_COMMENT   = "\x2f\x2f"[^\n]*"\n";
@@ -162,6 +163,7 @@ list<BTLexer::Token> BTLexer::lex()
             LITERAL_OCT    { TOKENIZE(BTT_LITERAL_OCT)                   }
             LITERAL_DEC    { TOKENIZE(BTT_LITERAL_DEC)                   }
             LITERAL_HEX    { TOKENIZE(BTT_LITERAL_HEX)                   }
+            LITERAL_CHAR   { TOKENIZE_STRING_LITERAL(BTT_LITERAL_CHAR)   }
             LITERAL_STRING { TOKENIZE_STRING_LITERAL(BTT_LITERAL_STRING) }
 
             * { UNKNOWN_TOKEN }

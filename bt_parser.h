@@ -86,9 +86,10 @@
 #define BTT_SIZEOF                          86
 #define BTT_DOT                             87
 #define BTT_LITERAL_STRING                  88
-#define BTT_LITERAL_OCT                     89
-#define BTT_LITERAL_DEC                     90
-#define BTT_LITERAL_HEX                     91
-#define BTT_LITERAL_REAL                    92
-#define BTT_TRUE                            93
-#define BTT_FALSE                           94
+#define BTT_LITERAL_CHAR                    89
+#define BTT_LITERAL_OCT                     90
+#define BTT_LITERAL_DEC                     91
+#define BTT_LITERAL_HEX                     92
+#define BTT_LITERAL_REAL                    93
+#define BTT_TRUE                            94
+#define BTT_FALSE                           95

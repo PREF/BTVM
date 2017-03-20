@@ -332,6 +332,7 @@ literal(A)            ::= LITERAL_STRING(B). { A = new NString(B->value); }
 literal(A)            ::= boolean(B).        { A = B; }
 literal(A)            ::= number(B).         { A = B; }
 
+number(A)             ::= LITERAL_CHAR(B). { A = new NInteger(VMFunctions::string_to_number(B->value, 8)); }
 number(A)             ::= LITERAL_OCT(B).  { A = new NInteger(VMFunctions::string_to_number(B->value, 8)); }
 number(A)             ::= LITERAL_DEC(B).  { A = new NInteger(VMFunctions::string_to_number(B->value, 10)); }
 number(A)             ::= LITERAL_HEX(B).  { A = new NInteger(VMFunctions::string_to_number(B->value, 16)); }
