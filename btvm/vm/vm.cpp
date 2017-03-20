@@ -978,10 +978,7 @@ int64_t VM::sizeOf(const VMValuePtr &vmvalue)
     if(vmvalue->is_array())
     {
         if(!vmvalue->m_value.capacity())
-        {
-            this->error("Cannot calculate the size of '" + vmvalue->value_id + "' (size = 0)");
             return 0;
-        }
 
         return this->sizeOf(vmvalue->m_value.front()) * vmvalue->m_value.capacity();
     }
