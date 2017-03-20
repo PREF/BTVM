@@ -43,6 +43,7 @@ class BTVM: public VM
         static VMValuePtr vmFileSize(VM *self, NCall* ncall);
         static VMValuePtr vmFTell(VM *self, NCall* ncall);
         static VMValuePtr vmReadBytes(VM *self, NCall* ncall);
+        static VMValuePtr vmReadString(VM *self, NCall* ncall);
         static VMValuePtr vmReadInt(VM *self, NCall* ncall);
         static VMValuePtr vmReadInt64(VM *self, NCall* ncall);
         static VMValuePtr vmReadQuad(VM *self, NCall* ncall);
@@ -54,6 +55,9 @@ class BTVM: public VM
         static VMValuePtr vmLittleEndian(VM *self, NCall* ncall);
         static VMValuePtr vmBigEndian(VM *self, NCall* ncall);
         static VMValuePtr vmFSeek(VM *self, NCall* ncall);
+
+    private: // String Functions
+        static VMValuePtr vmStrlen(VM* self, NCall* ncall);
 
     private: // Math Functions
         static VMValuePtr vmCeil(VM* self, NCall* ncall);

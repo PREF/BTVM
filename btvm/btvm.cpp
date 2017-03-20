@@ -169,9 +169,13 @@ void BTVM::initFunctions()
     this->functions["ReadUQuad"]     = &BTVM::vmReadUQuad;
     this->functions["ReadUShort"]    = &BTVM::vmReadUShort;
     this->functions["ReadBytes"]     = &BTVM::vmReadBytes;
+    this->functions["ReadString"]    = &BTVM::vmReadString;
     this->functions["ReadUShort"]    = &BTVM::vmReadUShort;
     this->functions["LittleEndian"]  = &BTVM::vmLittleEndian;
     this->functions["BigEndian"]     = &BTVM::vmBigEndian;
+
+    // String Functions: https://www.sweetscape.com/010editor/manual/FuncString.htm
+    this->functions["Strlen"]        = &BTVM::vmStrlen;
 
     // Math Functions: https://www.sweetscape.com/010editor/manual/FuncMath.htm
     this->functions["Ceil"]          = &BTVM::vmCeil;
@@ -298,6 +302,19 @@ VMValuePtr BTVM::vmFSeek(VM *self, NCall *ncall)
     return VMValue::allocate_literal(static_cast<int64_t>(0));
 }
 
+VMValuePtr BTVM::vmStrlen(VM *self, NCall *ncall)
+{
+    if(ncall->arguments.size() != 1)
+        return self->argumentError(ncall, 1);
+
+    VMValuePtr vmvalue = self->interpret(ncall->arguments.front());
+
+    if(!vmvalue->is_string())
+        return self->typeError(vmvalue, "string");
+
+    return VMValue::allocate_literal(static_cast<int64_t>(vmvalue->length()));
+}
+
 VMValuePtr BTVM::vmCeil(VM *self, NCall *ncall)
 {
     if(ncall->arguments.size() != 1)
@@ -366,27 +383,57 @@ VMValuePtr BTVM::vmReadBytes(VM *self, NCall *ncall)
         return self->argumentError(ncall, 3);
 
     BTVM* btvm = static_cast<BTVM*>(self);
+    VMValuePtr vmbuffer = self->interpret(ncall->arguments[0]);
 
-    VMValuePtr vmdest = self->interpret(ncall->arguments[0]);
+    if(!vmbuffer->is_array() && !vmbuffer->is_string())
+        return self->typeError(vmbuffer, "array or string");
 
-    if(!vmdest->is_array() && !vmdest->is_string())
-        return self->typeError(vmdest, "array or string");
+    VMValuePtr vmpos = self->interpret(ncall->arguments[1]);
 
-    VMValuePtr offset = self->interpret(ncall->arguments[1]);
+    if(!vmpos->is_scalar())
+        return self->typeError(vmpos, "scalar");
 
-    if(!offset->is_scalar())
-        return self->typeError(offset, "scalar");
+    VMValuePtr vmn = self->interpret(ncall->arguments[2]);
 
-    VMValuePtr size = self->interpret(ncall->arguments[2]);
-
-    if(!size->is_scalar())
-        return self->typeError(size, "scalar");
+    if(!vmn->is_scalar())
+        return self->typeError(vmn, "scalar");
 
     IO_NoSeek(btvm->_btvmio);
 
-    btvm->_btvmio->seek(offset->ui_value);
-    btvm->_btvmio->read(vmdest, size->ui_value);
+    btvm->_btvmio->seek(vmpos->ui_value);
+    btvm->_btvmio->read(vmbuffer, vmn->ui_value);
     return VMValuePtr();
+}
+
+VMValuePtr BTVM::vmReadString(VM *self, NCall *ncall)
+{
+    if((ncall->arguments.size() < 1) || (ncall->arguments.size() > 2))
+        return self->error("Expected 1 or 2 arguments, " + std::to_string(ncall->arguments.size()) + " given");
+
+    BTVM* btvm = static_cast<BTVM*>(self);
+    VMValuePtr vmpos = self->interpret(ncall->arguments[0]);
+
+    if(!vmpos->is_scalar())
+        return self->typeError(vmpos, "scalar");
+
+    int32_t maxlen = -1;
+
+    if(ncall->arguments.size() == 2)
+    {
+        VMValuePtr vmmaxlen = self->interpret(ncall->arguments[1]);
+
+        if(vmmaxlen->is_scalar())
+            return self->typeError(vmmaxlen, "scalar");
+
+        maxlen = *vmmaxlen->value_ref<int32_t>();
+    }
+
+    IO_NoSeek(btvm->_btvmio);
+
+    VMValuePtr vmvalue = VMValue::allocate(VMValueType::String);
+    btvm->_btvmio->seek(vmpos->ui_value);
+    btvm->_btvmio->readString(vmvalue, maxlen);
+    return vmvalue;
 }
 
 VMValuePtr BTVM::vmReadInt(VM *self, NCall *ncall)    { return static_cast<BTVM*>(self)->readScalar(ncall, 32, true);  }

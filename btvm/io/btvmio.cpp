@@ -42,6 +42,27 @@ void BTVMIO::read(const VMValuePtr &vmvalue, uint64_t bytes)
     }
 }
 
+void BTVMIO::readString(const VMValuePtr &vmvalue, int64_t maxlen)
+{
+    uint8_t* sbuffer = this->_buffer + this->_cursor.rel_position;
+    this->alignCursor();
+
+    while(!this->atEof() && maxlen)
+    {
+        if(this->atBufferEnd())
+            sbuffer = this->updateBuffer();
+
+        vmvalue->s_value.push_back(*sbuffer);
+
+        if((maxlen == -1) && (*sbuffer == '\0'))
+            break;
+        else if(maxlen > 0)
+            maxlen--;
+
+        sbuffer++; this->_cursor++;
+    }
+}
+
 void BTVMIO::walk(uint64_t steps)
 {
     if(!steps)
