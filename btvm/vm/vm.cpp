@@ -242,6 +242,8 @@ VMValuePtr VM::interpret(NBinaryOperator *nbinary)
 
     if(!VMFunctions::is_type_compatible(lbtv, rbtv))
         return this->error("Cannot use '" + nbinary->op + "' operator with '" + lbtv->type_name() + "' and '" + rbtv->type_name() + "'");
+    else if((nbinary->op == "=") && lbtv->is_const())
+        return this->error("Could not assign to constant variable '" + lbtv->value_id + "'");
 
     VMValuePtr btv;
 
