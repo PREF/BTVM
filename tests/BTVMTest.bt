@@ -13,6 +13,22 @@ void by_reference(int& val) { val++; }
 
 int return_function(int a) { return (a >= 100 ? a * 100 : -a); }
 
+int return_loop_conditional(int val)
+{
+    local int i=0;  
+    
+    for(i=0; i < 10; i++)
+    {
+        if((i >= 5) && (i <= 10))
+        {
+            if((val >= 5) && (val <= 10))
+                return val * 10;
+        }
+    }
+
+    return 0;
+}
+
 // --------------------------------------
 //             TEST CASES
 // --------------------------------------
@@ -294,6 +310,12 @@ void test_conditional_return()
 
     Printf("Conditional Return statement [case 2]...");
     __btvm_test__(return_function(i) == -i);
+
+    Printf("Conditional Return Loop statement [case 1]...");
+    __btvm_test__(return_loop_conditional(10) == 100);
+
+    Printf("Conditional Return Loop statement [case 2]...");
+    __btvm_test__(return_loop_conditional(1) == 0);
 }
 
 void test_function_call()
