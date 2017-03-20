@@ -61,6 +61,7 @@ struct VMValue
     VMValuePtr create_reference(uint64_t offset, VMValueType::VMType valuetype = VMValueType::Null) const;
     VMValuePtr is_member(const std::string& member) const;
 
+    bool is_template() const;
     bool is_const() const;
     bool is_local() const;
     bool is_reference() const;
@@ -82,6 +83,7 @@ struct VMValue
 
     std::string type_name() const;
     std::string to_string() const;
+    int32_t length() const;
 
     operator bool() const;
 

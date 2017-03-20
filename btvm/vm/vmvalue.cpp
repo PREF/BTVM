@@ -163,6 +163,7 @@ VMValuePtr VMValue::is_member(const std::string &member) const
     return NULL;
 }
 
+bool VMValue::is_template() const  { return (!is_const() && !is_local()); }
 bool VMValue::is_const() const     { return (value_flags & VMValueFlags::Const); }
 bool VMValue::is_local() const     { return (value_flags & VMValueFlags::Local); }
 bool VMValue::is_reference() const { return (value_flags & VMValueFlags::Reference); }
@@ -263,6 +264,14 @@ std::string VMValue::to_string() const
         return value_ref<char>();
 
     throw std::runtime_error("Trying to converting a '" + type_name() + "' to string");
+}
+
+int32_t VMValue::length() const
+{
+    if(!is_string())
+        return 0;
+
+    return std::strlen(value_ref<char>());
 }
 
 VMValue::operator bool() const
