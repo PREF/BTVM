@@ -65,7 +65,7 @@ VMValuePtr VM::interpret(const NodeList &nodelist)
     {
         res = this->interpret(*it);
 
-        if(this->state == VMState::Error)
+        if((this->state == VMState::Error) || (this->state == VMState::Break))
             return VMValuePtr();
         if(this->state == VMState::Return)
             break;
@@ -88,11 +88,11 @@ VMValuePtr VM::interpret(NConditional *nconditional)
 
 VMValuePtr VM::interpret(NDoWhile *ndowhile)
 {
-    ScopeContext(this);
     VMValuePtr vmvalue;
 
     do
     {
+        ScopeContext(this);
         vmvalue = this->interpret(ndowhile->true_block);
 
         int vms = VMFunctions::state_check(&this->state);
@@ -111,11 +111,11 @@ VMValuePtr VM::interpret(NDoWhile *ndowhile)
 
 VMValuePtr VM::interpret(NWhile *nwhile)
 {
-    ScopeContext(this);
     VMValuePtr vmvalue;
 
     while(*this->interpret(nwhile->condition))
     {
+        ScopeContext(this);
         vmvalue = this->interpret(nwhile->true_block);
 
         int vms = VMFunctions::state_check(&this->state);
@@ -133,14 +133,15 @@ VMValuePtr VM::interpret(NWhile *nwhile)
 
 VMValuePtr VM::interpret(NFor *nfor)
 {
-    ScopeContext(this);
     VMValuePtr vmvalue;
 
     this->interpret(nfor->counter);
 
     while(*this->interpret(nfor->condition))
     {
-        this->interpret(nfor->true_block);
+        ScopeContext(this);
+
+        vmvalue = this->interpret(nfor->true_block);
         this->interpret(nfor->update);
 
         int vms = VMFunctions::state_check(&this->state);
@@ -154,7 +155,6 @@ VMValuePtr VM::interpret(NFor *nfor)
     }
 
     return VMValuePtr();
-
 }
 
 VMValuePtr VM::interpret(NSwitch *nswitch)
@@ -479,14 +479,15 @@ void VM::declareVariable(NVariable *nvar)
     }
 
     VMScope& scope = this->_scopestack.empty() ? this->_globalscope : this->_scopestack.back();
+    auto it = scope.variables.find(vmvar->value_id);
 
-    if(scope.variables.find(nvar->name->value) != scope.variables.end())
+    if(it != scope.variables.end())
     {
-        this->error("Shadowing variable '" + nvar->name->value + "'");
+        this->error("Shadowing variable '" + vmvar->value_id + "'");
         return;
     }
 
-    scope.variables[nvar->name->value] = vmvar;
+    scope.variables[vmvar->value_id] = vmvar;
     this->allocVariable(vmvar, nvar);
 }
 
@@ -633,7 +634,15 @@ VMValuePtr VM::variable(NIdentifier *nid)
    VMValuePtr vmvalue;
 
    if(!this->_declarationstack.empty())
-       vmvalue = this->_declarationstack.back()->is_member(nid->value);
+   {
+       for(auto it = this->_declarationstack.rbegin(); it != this->_declarationstack.rend(); it++)
+       {
+           vmvalue = (*it)->is_member(nid->value);
+
+           if(vmvalue)
+               break;
+       }
+   }
 
    if(!vmvalue)
    {
