@@ -1,6 +1,7 @@
 #include "btvm.h"
 #include "bt_lexer.h"
 #include "vm/vm_functions.h"
+#include "btvm_types.h"
 #include <iostream>
 #include <cstdio>
 #include <cmath>
@@ -15,6 +16,7 @@ void BTParser(void* yyp, int yymajor, BTLexer::Token* yyminor, BTVM* btvm);
 
 BTVM::BTVM(BTVMIO *btvmio): VM(), _btvmio(btvmio)
 {
+    this->initTypes();
     this->initFunctions();
     this->initColors();
 }
@@ -26,6 +28,9 @@ BTVM::~BTVM()
         delete this->_btvmio;
         this->_btvmio = NULL;
     }
+
+    for(auto it = this->_builtin.begin(); it != this->_builtin.end(); it++)
+        delete *it;
 }
 
 void BTVM::evaluate(const string &code)
@@ -141,6 +146,13 @@ VMValuePtr BTVM::readScalar(NCall *ncall, uint64_t bits, bool issigned)
     return vmvalue;
 }
 
+void BTVM::initTypes()
+{
+    Node* n = BTVMTypes::buildTFindResults();
+    this->_builtin.push_back(n);
+    this->declare(n);
+}
+
 void BTVM::initFunctions()
 {
     // Interface Functions: https://www.sweetscape.com/010editor/manual/FuncInterface.htm
@@ -173,6 +185,9 @@ void BTVM::initFunctions()
 
     // Math Functions: https://www.sweetscape.com/010editor/manual/FuncMath.htm
     this->functions["Ceil"]          = &BTVM::vmCeil;
+
+    // Tool Functions: https://www.sweetscape.com/010editor/manual/FuncTools.htm
+    this->functions["FindAll"]       = &BTVM::vmFindAll;
 
     // Non-Standard Functions
     this->functions["__btvm_test__"] = &BTVM::vmBtvmTest; // Non-standard BTVM function for unit testing
@@ -321,6 +336,15 @@ VMValuePtr BTVM::vmCeil(VM *self, NCall *ncall)
 
     vmvalue->d_value = std::ceil(vmvalue->d_value);
     return vmvalue;
+}
+
+VMValuePtr BTVM::vmFindAll(VM *self, NCall *ncall)
+{
+    VMUnused(self);
+    VMUnused(ncall);
+
+    cout << "FindAll(): Not implemented";
+    return VMValuePtr();
 }
 
 VMValuePtr BTVM::vmWarning(VM *self, NCall *ncall)

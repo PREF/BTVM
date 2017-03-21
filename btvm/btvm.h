@@ -28,6 +28,7 @@ class BTVM: public VM
     private:
         BTEntryPtr buildEntry(const VMValuePtr& vmvalue, const BTEntryPtr &btparent, uint64_t &offset);
         VMValuePtr readScalar(NCall* ncall, uint64_t bits, bool issigned);
+        void initTypes();
         void initFunctions();
         void initColors();
 
@@ -61,11 +62,15 @@ class BTVM: public VM
     private: // Math Functions
         static VMValuePtr vmCeil(VM* self, NCall* ncall);
 
+    private: // Tool Functions
+        static VMValuePtr vmFindAll(VM* self, NCall* ncall);
+
     private: // Non-Standard Functions
         static VMValuePtr vmBtvmTest(VM *self, NCall* ncall);
 
     private:
         std::unordered_map<std::string, uint32_t> _colors;
+        std::list<Node*> _builtin;
         ColorMap _backcolors;
         ColorMap _forecolors;
         BTVMIO* _btvmio;

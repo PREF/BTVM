@@ -69,7 +69,6 @@ class VM
         VMValuePtr interpret(NCast* ncast);
         VMValuePtr interpret(NSizeOf* nsizeof);
         VMValuePtr interpret(NEnum* nenum);
-        void declare(Node* node);
         void declareVariables(NVariable* nvar);
         void declareVariable(NVariable* nvar);
         VMValuePtr call(NCall* ncall);
@@ -103,6 +102,7 @@ class VM
 
     protected:
         virtual void readValue(const VMValuePtr& vmvar, uint64_t size, bool seek) = 0;
+        void declare(Node* node);
         int64_t sizeOf(const VMValuePtr& vmvalue);
         int64_t sizeOf(NIdentifier* nid);
         int64_t sizeOf(NVariable* nvar);
