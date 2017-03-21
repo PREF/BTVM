@@ -1,7 +1,7 @@
 #include "btvm.h"
-#include "bt_lexer.h"
 #include "vm/vm_functions.h"
 #include "btvm_types.h"
+#include "../bt_lexer.h"
 #include <iostream>
 #include <cstdio>
 #include <cmath>
