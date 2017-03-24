@@ -1,5 +1,5 @@
 #include "btvmio.h"
-#include "../vm/ast.h"
+#include "vm/ast.h"
 #include <cstring>
 
 #define BUFFER_SIZE 4096

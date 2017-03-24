@@ -6,7 +6,7 @@
 #include <stack>
 #include "vm/vm.h"
 #include "format/btentry.h"
-#include "io/btvmio.h"
+#include "btvmio.h"
 
 #define ColorInvalid 0xFFFFFFFF
 

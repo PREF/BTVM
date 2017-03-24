@@ -2,9 +2,9 @@
 #define BTVMIO_H
 
 #include <functional>
-#include "../vm/vmvalue.h"
-#include "../vm/vm_functions.h"
-#include "../format/btentry.h"
+#include "vm/vmvalue.h"
+#include "vm/vm_functions.h"
+#include "format/btentry.h"
 
 #define IO_NoSeek(btvmio) BTVMIO::NoSeek __noseek__(btvmio)
 
