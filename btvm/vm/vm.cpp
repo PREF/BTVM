@@ -27,7 +27,12 @@ VM::~VM()
 
 VMValuePtr VM::execute(const string &file)
 {
-    this->evaluate(this->readFile(file));
+    return this->evaluate(this->readFile(file));
+}
+
+VMValuePtr VM::evaluate(const string &code)
+{
+    this->parse(code);
 
     if(!this->_ast || (this->state == VMState::Error))
         return VMValuePtr();
@@ -35,7 +40,7 @@ VMValuePtr VM::execute(const string &file)
     return this->interpret(this->_ast);
 }
 
-void VM::evaluate(const string &code)
+void VM::parse(const string &code)
 {
     if(this->_ast)
         delete this->_ast;
@@ -47,7 +52,7 @@ void VM::evaluate(const string &code)
 
 void VM::dump(const string &file, const string &astfile)
 {
-    this->evaluate(this->readFile(file));
+    this->parse(this->readFile(file));
 
     if(!this->_ast)
         return;
@@ -489,6 +494,7 @@ void VM::declareVariables(NVariable *nvar)
 void VM::declareVariable(NVariable *nvar)
 {
     VMValuePtr vmvar = VMValue::allocate(nvar->name->value);
+    vmvar->value_typeid = VMFunctions::node_typeid(nvar->type);
 
     if(!this->_declarationstack.empty())
     {

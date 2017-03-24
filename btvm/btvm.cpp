@@ -27,9 +27,9 @@ BTVM::~BTVM()
         delete *it;
 }
 
-void BTVM::evaluate(const string &code)
+void BTVM::parse(const string &code)
 {
-    VM::evaluate(code);
+    VM::parse(code);
 
     BTLexer lexer(code.c_str());
     std::list<BTLexer::Token> tokens = lexer.lex();

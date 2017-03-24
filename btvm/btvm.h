@@ -18,7 +18,7 @@ class BTVM: public VM
     public:
         BTVM(BTVMIO* btvmio);
         ~BTVM();
-        virtual void evaluate(const std::string& code);
+        virtual void parse(const std::string& code);
         BTEntryList format();
 
     protected:

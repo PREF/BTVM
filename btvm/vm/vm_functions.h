@@ -50,6 +50,7 @@ inline int state_check(int* state)
 inline int64_t string_to_number(const string& s, int base) { return strtoul(s.c_str(), NULL, base); }
 inline double string_to_number(const string& s) { return atof(s.c_str()); }
 string format_string(const VMValuePtr &format, const ValueList& args);
+string node_typeid(Node* node);
 VMValueType::VMType integer_literal_type(int64_t value);
 VMValueType::VMType scalar_type(uint64_t bits, bool issigned, bool isfp);
 VMValueType::VMType value_type(Node *node);

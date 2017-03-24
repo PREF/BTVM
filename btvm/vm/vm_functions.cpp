@@ -270,4 +270,14 @@ bool type_cast(const VMValuePtr &vmvalue, Node* node)
     return false;
 }
 
+string node_typeid(Node *node)
+{
+    if(node_is(node, NIdentifier))
+        return static_cast<NIdentifier*>(node)->value;
+    else if(node_inherits(node, NType))
+        return node_typeid(static_cast<NType*>(node)->name);
+
+    throw std::runtime_error("Unhandled type '" + node_typename(node) + "'");
+}
+
 }

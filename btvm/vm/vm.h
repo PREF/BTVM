@@ -48,7 +48,8 @@ class VM
         VM();
         ~VM();
         VMValuePtr execute(const std::string& file);
-        virtual void evaluate(const std::string& code);
+        VMValuePtr evaluate(const std::string& code);
+        virtual void parse(const std::string& code);
         void dump(const std::string& file, const std::string& astfile);
         VMValuePtr interpret(Node* node);
         void loadAST(NBlock* _ast);
