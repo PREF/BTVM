@@ -23,12 +23,6 @@ BTVM::BTVM(BTVMIO *btvmio): VM(), _btvmio(btvmio)
 
 BTVM::~BTVM()
 {
-    if(this->_btvmio)
-    {
-        delete this->_btvmio;
-        this->_btvmio = NULL;
-    }
-
     for(auto it = this->_builtin.begin(); it != this->_builtin.end(); it++)
         delete *it;
 }
