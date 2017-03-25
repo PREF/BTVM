@@ -262,7 +262,7 @@ std::string VMValue::to_string() const
 std::string VMValue::printable(int base) const
 {
     if(is_integer())
-        return VMFunctions::number_to_string((is_signed() ? *value_ref<int64_t>() : *value_ref<uint64_t>()), base, VMFunctions::type_width(value_type));
+        return VMFunctions::number_to_string((is_signed() ? *value_ref<int64_t>() : *value_ref<uint64_t>()), base);
     else if(is_floating_point())
         return std::to_string(*value_ref<double>());
     else if(is_string())
