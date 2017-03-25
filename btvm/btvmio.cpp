@@ -87,8 +87,8 @@ bool BTVMIO::atEof() const
 
 void BTVMIO::seek(uint64_t offset)
 {
-    this->updateBuffer();
     this->_cursor.position = offset;
+    this->updateBuffer();
 }
 
 int BTVMIO::endianness() const
