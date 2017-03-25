@@ -280,4 +280,18 @@ string node_typeid(Node *node)
     throw std::runtime_error("Unhandled type '" + node_typename(node) + "'");
 }
 
+size_t type_width(VMValueType::VMType valuetype)
+{
+    if((valuetype == VMValueType::s8) || (valuetype == VMValueType::u8))
+        return 2;
+    else if((valuetype == VMValueType::s16) || (valuetype == VMValueType::u16))
+        return 4;
+    else if((valuetype == VMValueType::s32) || (valuetype == VMValueType::u32))
+        return 8;
+    else if((valuetype == VMValueType::s64) || (valuetype == VMValueType::u64))
+        return 16;
+
+    return 0;
+}
+
 }

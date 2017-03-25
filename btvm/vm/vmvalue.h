@@ -83,6 +83,7 @@ struct VMValue
 
     std::string type_name() const;
     std::string to_string() const;
+    std::string printable(int base = 10) const;
     int32_t length() const;
 
     operator bool() const;

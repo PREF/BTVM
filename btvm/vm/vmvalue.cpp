@@ -251,19 +251,24 @@ std::string VMValue::type_name() const
 
 std::string VMValue::to_string() const
 {
-    if(is_integer())
-    {
-        if(is_signed())
-            return std::to_string(*value_ref<int64_t>());
+    std::string s = printable(10);
 
-        return std::to_string(*value_ref<uint64_t>());
-    }
+    if(s.empty())
+        throw std::runtime_error("Trying to converting a '" + type_name() + "' to string");
+
+    return s;
+}
+
+std::string VMValue::printable(int base) const
+{
+    if(is_integer())
+        return VMFunctions::number_to_string((is_signed() ? *value_ref<int64_t>() : *value_ref<uint64_t>()), base, VMFunctions::type_width(value_type));
     else if(is_floating_point())
         return std::to_string(*value_ref<double>());
     else if(is_string())
         return value_ref<char>();
 
-    throw std::runtime_error("Trying to converting a '" + type_name() + "' to string");
+    return std::string();
 }
 
 int32_t VMValue::length() const

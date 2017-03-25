@@ -19,7 +19,7 @@ using namespace std;
 
 typedef vector<VMValuePtr> ValueList;
 
-template<typename T> string number_to_string(T num, int base)
+template<typename T> string number_to_string(T num, int base, size_t fill = 0)
 {
     static const char* digits = "0123456789abcdef";
     string value;
@@ -30,6 +30,19 @@ template<typename T> string number_to_string(T num, int base)
         num /= base;
     }
     while(num != 0);
+
+    if((base == 16) && (value.length() < fill))
+        value = string(fill - value.length(), '0').append(value);
+
+    if(base == 16)
+    {
+        std::transform(value.begin(), value.end(), value.begin(), ::toupper);
+        value += "h";
+    }
+    else if(base == 8)
+        value += "o";
+    else if(base == 2)
+        value += "b";
 
     return value;
 }
@@ -57,6 +70,7 @@ VMValueType::VMType value_type(Node *node);
 bool is_type_compatible(const VMValuePtr& vmvalue1, const VMValuePtr& vmvalue2);
 bool type_cast(const VMValuePtr& vmvalue, Node *node);
 void change_sign(const VMValuePtr& vmvalue);
+size_t type_width(VMValueType::VMType valuetype);
 
 }
 
