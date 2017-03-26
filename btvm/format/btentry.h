@@ -16,6 +16,7 @@ struct BTLocation
 {
     BTLocation(): offset(0), size(0) { }
     BTLocation(uint64_t offset, uint64_t size): offset(offset), size(size) { }
+    uint64_t end() const { return (offset + size) - 1; }
 
     uint64_t offset;
     uint64_t size;
