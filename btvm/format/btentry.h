@@ -21,6 +21,11 @@ struct BTLocation
     uint64_t size;
 };
 
+class BTEntry;
+
+typedef std::shared_ptr<BTEntry> BTEntryPtr;
+typedef std::vector<BTEntryPtr> BTEntryList;
+
 struct BTEntry
 {
     BTEntry() { }
@@ -32,11 +37,9 @@ struct BTEntry
     size_t endianness;
     uint32_t backcolor;
     uint32_t forecolor;
-    std::vector< std::shared_ptr<BTEntry> > children;
+    BTEntryPtr parent;
+    BTEntryList children;
 };
-
-typedef std::shared_ptr<BTEntry> BTEntryPtr;
-typedef std::vector<BTEntryPtr> BTEntryList;
 
 
 #endif // BTENTRY_H

@@ -90,6 +90,7 @@ BTEntryPtr BTVM::buildEntry(const VMValuePtr &vmvalue, const BTEntryPtr& btparen
 {
     BTEntryPtr btentry = std::make_shared<BTEntry>(vmvalue, this->_btvmio->endianness());
     btentry->location = BTLocation(offset, this->sizeOf(vmvalue));
+    btentry->parent = btparent;
 
     auto it = this->_backcolors.find(offset);
 
