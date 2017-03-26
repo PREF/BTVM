@@ -594,6 +594,7 @@ void VM::allocType(const VMValuePtr& vmvar, Node *node, Node *nsize, const NodeL
 
 void VM::allocVariable(const VMValuePtr& vmvar, NVariable *nvar)
 {
+    this->applyCustomVariables(vmvar, nvar);
     this->allocType(vmvar, nvar->type, this->arraySize(nvar), nvar->constructor);
 
     if(nvar->bits)
@@ -604,6 +605,12 @@ void VM::allocVariable(const VMValuePtr& vmvar, NVariable *nvar)
 
     if(nvar->is_local)
         vmvar->value_flags |= VMValueFlags::Local;
+
+    if(vmvar->value_fgcolor == ColorInvalid)
+        vmvar->value_fgcolor= this->currentFgColor();
+
+    if(vmvar->value_bgcolor == ColorInvalid)
+        vmvar->value_bgcolor= this->currentBgColor();
 
     if(!nvar->is_const && !nvar->is_local)
     {
@@ -758,6 +765,46 @@ void VM::readValue(const VMValuePtr &vmvar, bool seek)
     }
     else if(vmvar->is_readable())
         this->readValue(vmvar, this->sizeOf(vmvar), seek);
+}
+
+void VM::applyCustomVariables(const VMValuePtr &vmvar, NVariable *nvar)
+{
+    for(auto it = nvar->custom_vars.begin(); it != nvar->custom_vars.end(); it++)
+    {
+        if(!node_is(*it, NCustomVariable))
+        {
+            this->error("Expected 'NCustomVariable', got '" + node_typename(*it));
+            return;
+        }
+
+        NCustomVariable* ncustomvar = static_cast<NCustomVariable*>(*it);
+
+        if(ncustomvar->action == "fgcolor")
+        {
+            if(!node_is(ncustomvar->value, NIdentifier))
+            {
+                this->error("Expected 'NIdentifier', got '" + node_typename(ncustomvar->value) + "'");
+                return;
+            }
+
+            vmvar->value_fgcolor = this->color(static_cast<NIdentifier*>(ncustomvar->value)->value);
+        }
+        else if(ncustomvar->action == "bgcolor")
+        {
+            if(!node_is(ncustomvar->value, NIdentifier))
+            {
+                this->error("Expected 'NIdentifier', got '" + node_typename(ncustomvar->value) + "'");
+                return;
+            }
+
+            vmvar->value_bgcolor = this->color(static_cast<NIdentifier*>(ncustomvar->value)->value);
+        }
+        else if(ncustomvar->action == "comment")
+        {
+            if(node_is(ncustomvar->value, NString))
+                vmvar->value_comment = static_cast<NString*>(ncustomvar->value)->value;
+        }
+    }
 }
 
 bool VM::pushScope(NIdentifier* nid, const NodeList& funcargs, const NodeList& callargs)

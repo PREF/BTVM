@@ -112,7 +112,7 @@ struct NCustomVariable: public Node
 
     NCustomVariable(const std::string& action, Node* value): Node(), action(action), value(value) { }
 
-    const std::string& action;
+    std::string action;
     Node* value;
 };
 

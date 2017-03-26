@@ -7,6 +7,8 @@
 #include <string>
 #include <map>
 
+#define ColorInvalid 0xFFFFFFFF
+
 class Node;
 class VMValue;
 
@@ -123,6 +125,9 @@ struct VMValue
     Node*                value_typedef;
     std::string          value_id;
     std::string			 value_typeid;
+    std::string			 value_comment;
+    uint32_t 			 value_bgcolor;
+    uint32_t 			 value_fgcolor;
     int64_t              value_bits;
 
     VMValueMembers       m_value;

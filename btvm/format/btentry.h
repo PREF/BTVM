@@ -30,14 +30,12 @@ typedef std::vector<BTEntryPtr> BTEntryList;
 struct BTEntry
 {
     BTEntry() { }
-    BTEntry(const VMValuePtr& value, size_t endianness): name(value->value_id), value(value), endianness(endianness), backcolor(0xFFFFFFFF), forecolor(0xFFFFFFFF) { }
+    BTEntry(const VMValuePtr& value, size_t endianness): name(value->value_id), value(value), endianness(endianness) { }
 
     std::string name;
     VMValuePtr value;
     BTLocation location;
     size_t endianness;
-    uint32_t backcolor;
-    uint32_t forecolor;
     BTEntryPtr parent;
     BTEntryList children;
 };

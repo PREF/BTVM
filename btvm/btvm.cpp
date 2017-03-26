@@ -14,7 +14,7 @@ void* BTParserAlloc(void* (*mallocproc)(size_t));
 void BTParserFree(void* p, void (*freeproc)(void*));
 void BTParser(void* yyp, int yymajor, BTLexer::Token* yyminor, BTVM* btvm);
 
-BTVM::BTVM(BTVMIO *btvmio): VM(), _btvmio(btvmio)
+BTVM::BTVM(BTVMIO *btvmio): VM(), _fgcolor(ColorInvalid), _bgcolor(ColorInvalid), _btvmio(btvmio)
 {
     this->initTypes();
     this->initFunctions();
@@ -91,25 +91,32 @@ void BTVM::entryCreated(const BTEntryPtr &btentry)
     VMUnused(btentry);
 }
 
+uint32_t BTVM::color(const string &color) const
+{
+    auto it = this->_colors.find(color);
+
+    if(it == this->_colors.end())
+        return ColorInvalid;
+
+    return it->second;
+}
+
+uint32_t BTVM::currentFgColor() const
+{
+    return this->_fgcolor;
+}
+
+uint32_t BTVM::currentBgColor() const
+{
+
+    return this->_bgcolor;
+}
+
 BTEntryPtr BTVM::createEntry(const VMValuePtr &vmvalue, const BTEntryPtr& btparent, uint64_t& offset)
 {
     BTEntryPtr btentry = std::make_shared<BTEntry>(vmvalue, this->_btvmio->endianness());
     btentry->location = BTLocation(offset, this->sizeOf(vmvalue));
     btentry->parent = btparent;
-
-    auto it = this->_backcolors.find(offset);
-
-    if(it != this->_backcolors.end())
-        btentry->backcolor = it->second;
-    else if(btparent)
-        btentry->backcolor = btparent->backcolor;
-
-    it = this->_forecolors.find(offset);
-
-    if(it != this->_forecolors.end())
-        btentry->forecolor = it->second;
-    else if(btparent)
-        btentry->forecolor = btparent->forecolor;
 
     if(vmvalue->is_array() || node_is(vmvalue->value_typedef, NStruct))
     {
@@ -246,13 +253,13 @@ VMValuePtr BTVM::vmSetBackColor(VM *self, NCall *ncall)
     if(!node_is(ncall->arguments[0], NIdentifier))
         return self->typeError(ncall->arguments[0], node_s_typename(NIdentifier));
 
-    BTVM* btvm = static_cast<BTVM*>(self);
     NIdentifier* nid = static_cast<NIdentifier*>(ncall->arguments[0]);
+    uint32_t color = self->color(nid->value);
 
-    if(btvm->_colors.find(nid->value) == btvm->_colors.end())
-        return btvm->error("Invalid color '" + nid->value + "'");
+    if(color == ColorInvalid)
+        return self->error("Invalid color '" + nid->value + "'");
 
-    btvm->_backcolors[btvm->_btvmio->offset()] = btvm->_colors[nid->value];
+    static_cast<BTVM*>(self)->_bgcolor = color;
     return VMValuePtr();
 }
 
@@ -264,13 +271,12 @@ VMValuePtr BTVM::vmSetForeColor(VM *self, NCall *ncall)
     if(!node_is(ncall->arguments[0], NIdentifier))
         return self->typeError(ncall->arguments[0], node_s_typename(NIdentifier));
 
-    BTVM* btvm = static_cast<BTVM*>(self);
     NIdentifier* nid = static_cast<NIdentifier*>(ncall->arguments.front());
+    uint32_t color = self->color(nid->value);
 
-    if(btvm->_colors.find(nid->value) == btvm->_colors.end())
-        return btvm->error("Invalid color '" + nid->value + "'");
+    if(color == ColorInvalid)
+        return self->error("Invalid color '" + nid->value + "'");
 
-    btvm->_forecolors[btvm->_btvmio->offset()] = btvm->_colors[nid->value];
     return VMValuePtr();
 }
 

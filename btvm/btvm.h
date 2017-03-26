@@ -8,8 +8,6 @@
 #include "format/btentry.h"
 #include "btvmio.h"
 
-#define ColorInvalid 0xFFFFFFFF
-
 class BTVM: public VM
 {
     private:
@@ -19,12 +17,15 @@ class BTVM: public VM
         BTVM(BTVMIO* btvmio);
         ~BTVM();
         virtual void parse(const std::string& code);
+        virtual uint32_t color(const std::string& color) const;
         BTEntryList createTemplate();
 
     protected:
         virtual void print(const std::string& s);
         virtual void readValue(const VMValuePtr &vmvar, uint64_t size, bool seek);
         virtual void entryCreated(const BTEntryPtr& btentry);
+        virtual uint32_t currentFgColor() const;
+        virtual uint32_t currentBgColor() const;
 
     private:
         BTEntryPtr createEntry(const VMValuePtr& vmvalue, const BTEntryPtr &btparent, uint64_t &offset);
@@ -72,8 +73,8 @@ class BTVM: public VM
     private:
         std::unordered_map<std::string, uint32_t> _colors;
         std::list<Node*> _builtin;
-        ColorMap _backcolors;
-        ColorMap _forecolors;
+        uint32_t _fgcolor;
+        uint32_t _bgcolor;
         BTVMIO* _btvmio;
 };
 

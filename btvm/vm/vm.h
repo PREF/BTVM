@@ -50,6 +50,7 @@ class VM
         VMValuePtr execute(const std::string& file);
         VMValuePtr evaluate(const std::string& code);
         virtual void parse(const std::string& code);
+        virtual uint32_t color(const std::string& color) const = 0;
         void dump(const std::string& file, const std::string& astfile);
         VMValuePtr interpret(Node* node);
         void loadAST(NBlock* _ast);
@@ -92,6 +93,7 @@ class VM
         std::string readFile(const std::string& file) const;
         void writeFile(const std::string& file, const std::string& data) const;
         void readValue(const VMValuePtr& vmvar, bool seek);
+        void applyCustomVariables(const VMValuePtr& vmvar, NVariable* nvar);
 
     public: // Error management
         virtual VMValuePtr error(const std::string& msg);
@@ -102,6 +104,8 @@ class VM
         void syntaxError(const std::string& token, unsigned int line);
 
     protected:
+        virtual uint32_t currentFgColor() const = 0;
+        virtual uint32_t currentBgColor() const = 0;
         virtual void readValue(const VMValuePtr& vmvar, uint64_t size, bool seek) = 0;
         void declare(Node* node);
         int64_t sizeOf(const VMValuePtr& vmvalue);
