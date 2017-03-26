@@ -19,14 +19,15 @@ class BTVM: public VM
         BTVM(BTVMIO* btvmio);
         ~BTVM();
         virtual void parse(const std::string& code);
-        BTEntryList format();
+        BTEntryList createTemplate();
 
     protected:
         virtual void print(const std::string& s);
         virtual void readValue(const VMValuePtr &vmvar, uint64_t size, bool seek);
+        virtual void entryCreated(const BTEntryPtr& btentry);
 
     private:
-        BTEntryPtr buildEntry(const VMValuePtr& vmvalue, const BTEntryPtr &btparent, uint64_t &offset);
+        BTEntryPtr createEntry(const VMValuePtr& vmvalue, const BTEntryPtr &btparent, uint64_t &offset);
         VMValuePtr readScalar(NCall* ncall, uint64_t bits, bool issigned);
         void initTypes();
         void initFunctions();

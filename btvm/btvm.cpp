@@ -51,7 +51,7 @@ void BTVM::parse(const string &code)
     BTParserFree(parser, &free);
 }
 
-BTEntryList BTVM::format()
+BTEntryList BTVM::createTemplate()
 {
     BTEntryList btfmt;
 
@@ -61,7 +61,7 @@ BTEntryList BTVM::format()
         uint64_t offset = 0;
 
         for(auto it = this->allocations.begin(); it != this->allocations.end(); it++)
-            btfmt.push_back(this->buildEntry(*it, NULL, offset));
+            btfmt.push_back(this->createEntry(*it, NULL, offset));
     }
     else
         this->allocations.clear();
@@ -86,7 +86,12 @@ void BTVM::readValue(const VMValuePtr& vmvar, uint64_t size, bool seek)
     this->_btvmio->read(vmvar, size);
 }
 
-BTEntryPtr BTVM::buildEntry(const VMValuePtr &vmvalue, const BTEntryPtr& btparent, uint64_t& offset)
+void BTVM::entryCreated(const BTEntryPtr &btentry)
+{
+    VMUnused(btentry);
+}
+
+BTEntryPtr BTVM::createEntry(const VMValuePtr &vmvalue, const BTEntryPtr& btparent, uint64_t& offset)
 {
     BTEntryPtr btentry = std::make_shared<BTEntry>(vmvalue, this->_btvmio->endianness());
     btentry->location = BTLocation(offset, this->sizeOf(vmvalue));
@@ -109,11 +114,12 @@ BTEntryPtr BTVM::buildEntry(const VMValuePtr &vmvalue, const BTEntryPtr& btparen
     if(vmvalue->is_array() || node_is(vmvalue->value_typedef, NStruct))
     {
         for(auto it = vmvalue->m_value.begin(); it != vmvalue->m_value.end(); it++)
-            btentry->children.push_back(this->buildEntry(*it, btentry, offset));
+            btentry->children.push_back(this->createEntry(*it, btentry, offset));
     }
     else
         offset += this->sizeOf(vmvalue);
 
+    this->entryCreated(btentry);
     return btentry;
 }
 
