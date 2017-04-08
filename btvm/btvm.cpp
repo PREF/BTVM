@@ -254,12 +254,7 @@ VMValuePtr BTVM::vmSetBackColor(VM *self, NCall *ncall)
         return self->typeError(ncall->arguments[0], node_s_typename(NIdentifier));
 
     NIdentifier* nid = static_cast<NIdentifier*>(ncall->arguments[0]);
-    uint32_t color = self->color(nid->value);
-
-    if(color == ColorInvalid)
-        return self->error("Invalid color '" + nid->value + "'");
-
-    static_cast<BTVM*>(self)->_bgcolor = color;
+    static_cast<BTVM*>(self)->_bgcolor = self->color(nid->value);
     return VMValuePtr();
 }
 
@@ -272,11 +267,7 @@ VMValuePtr BTVM::vmSetForeColor(VM *self, NCall *ncall)
         return self->typeError(ncall->arguments[0], node_s_typename(NIdentifier));
 
     NIdentifier* nid = static_cast<NIdentifier*>(ncall->arguments.front());
-    uint32_t color = self->color(nid->value);
-
-    if(color == ColorInvalid)
-        return self->error("Invalid color '" + nid->value + "'");
-
+    static_cast<BTVM*>(self)->_fgcolor = self->color(nid->value);;
     return VMValuePtr();
 }
 
