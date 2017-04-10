@@ -241,7 +241,7 @@ VMValuePtr BTVM::vmPrintf(VM *self, NCall *ncall)
             args.push_back(self->interpret(*it));
     }
 
-    static_cast<BTVM*>(self)->print(VMFunctions::format_string(format, args) + "\n");
+    static_cast<BTVM*>(self)->print(VMFunctions::format_string(format, args));
     return VMValuePtr();
 }
 
