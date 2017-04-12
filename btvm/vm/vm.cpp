@@ -1052,7 +1052,7 @@ int64_t VM::sizeOf(NVariable *nvar)
 int64_t VM::sizeOf(const VMValuePtr &vmvalue)
 {
     if(vmvalue->is_string())
-        return (vmvalue->s_value.empty() ? 0 : vmvalue->s_value.size() - 1);
+        return vmvalue->s_value.size();
 
     if(vmvalue->is_array())
     {

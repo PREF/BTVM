@@ -92,7 +92,7 @@ void VMValue::allocate_array(uint64_t size, Node *type)
     m_value.reserve(size);
 }
 
-void VMValue::allocate_string(uint64_t size, Node *type) { allocate_type(VMValueType::String, size + 1, type); }
+void VMValue::allocate_string(uint64_t size, Node *type) { allocate_type(VMValueType::String, size, type); }
 
 void VMValue::allocate_string(const std::string &s, Node *type)
 {
@@ -276,7 +276,7 @@ int32_t VMValue::length() const
     if(!is_string())
         return 0;
 
-    return std::strlen(value_ref<char>());
+    return std::strlen(value_ref<char>()) + 1;
 }
 
 VMValue::operator bool() const
