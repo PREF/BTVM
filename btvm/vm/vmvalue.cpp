@@ -14,11 +14,11 @@
         return *value_ref<int64_t>() op *rhs.value_ref<int64_t>(); \
     return *value_ref<uint64_t>() op *rhs.value_ref<uint64_t>();
 
-VMValue::VMValue()               : value_flags(VMValueFlags::None), value_type(VMValueType::Null),   value_typedef(NULL), value_bgcolor(ColorInvalid), value_fgcolor(ColorInvalid), value_bits(-1), s_value_ref(NULL), ui_value(0)     { }
-VMValue::VMValue(bool value)     : value_flags(VMValueFlags::None), value_type(VMValueType::Bool),   value_typedef(NULL), value_bgcolor(ColorInvalid), value_fgcolor(ColorInvalid), value_bits(-1), s_value_ref(NULL), ui_value(value) { }
-VMValue::VMValue(int64_t value)  : value_flags(VMValueFlags::None), value_type(VMValueType::s64),    value_typedef(NULL), value_bgcolor(ColorInvalid), value_fgcolor(ColorInvalid), value_bits(-1), s_value_ref(NULL), ui_value(value) { }
-VMValue::VMValue(uint64_t value) : value_flags(VMValueFlags::None), value_type(VMValueType::u64),    value_typedef(NULL), value_bgcolor(ColorInvalid), value_fgcolor(ColorInvalid), value_bits(-1), s_value_ref(NULL), ui_value(value) { }
-VMValue::VMValue(double value)   : value_flags(VMValueFlags::None), value_type(VMValueType::Double), value_typedef(NULL), value_bgcolor(ColorInvalid), value_fgcolor(ColorInvalid), value_bits(-1), s_value_ref(NULL), d_value(value)  { }
+VMValue::VMValue()               : value_flags(VMValueFlags::None), value_type(VMValueType::Null),   value_typedef(NULL), value_bgcolor(ColorInvalid), value_fgcolor(ColorInvalid), value_bits(-1), value_offset(0), s_value_ref(NULL), ui_value(0)     { }
+VMValue::VMValue(bool value)     : value_flags(VMValueFlags::None), value_type(VMValueType::Bool),   value_typedef(NULL), value_bgcolor(ColorInvalid), value_fgcolor(ColorInvalid), value_bits(-1), value_offset(0), s_value_ref(NULL), ui_value(value) { }
+VMValue::VMValue(int64_t value)  : value_flags(VMValueFlags::None), value_type(VMValueType::s64),    value_typedef(NULL), value_bgcolor(ColorInvalid), value_fgcolor(ColorInvalid), value_bits(-1), value_offset(0), s_value_ref(NULL), ui_value(value) { }
+VMValue::VMValue(uint64_t value) : value_flags(VMValueFlags::None), value_type(VMValueType::u64),    value_typedef(NULL), value_bgcolor(ColorInvalid), value_fgcolor(ColorInvalid), value_bits(-1), value_offset(0), s_value_ref(NULL), ui_value(value) { }
+VMValue::VMValue(double value)   : value_flags(VMValueFlags::None), value_type(VMValueType::Double), value_typedef(NULL), value_bgcolor(ColorInvalid), value_fgcolor(ColorInvalid), value_bits(-1), value_offset(0), s_value_ref(NULL), d_value(value)  { }
 
 VMValuePtr VMValue::allocate(const std::string &id)
 {

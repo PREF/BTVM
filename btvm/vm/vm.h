@@ -104,6 +104,7 @@ class VM
         void syntaxError(const std::string& token, unsigned int line);
 
     protected:
+        virtual uint64_t currentOffset() const = 0;
         virtual uint32_t currentFgColor() const = 0;
         virtual uint32_t currentBgColor() const = 0;
         virtual void readValue(const VMValuePtr& vmvar, uint64_t size, bool seek) = 0;

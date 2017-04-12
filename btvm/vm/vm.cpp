@@ -10,6 +10,7 @@ using namespace std;
                            btv->assign(*btv op *rbtv); }
 
 #define CurrentScope() (this->_scopestack.empty() ? this->_globalscope : this->_scopestack.back())
+#define SetFieldOffset(vmvalue, i) vmvalue->value_offset = vmvalue->m_value[i]->value_offset
 
 VM::VM(): _ast(NULL), state(VMState::NoState)
 {
@@ -594,9 +595,6 @@ void VM::allocType(const VMValuePtr& vmvar, Node *node, Node *nsize, const NodeL
 
 void VM::allocVariable(const VMValuePtr& vmvar, NVariable *nvar)
 {
-    this->applyCustomVariables(vmvar, nvar);
-    this->allocType(vmvar, nvar->type, this->arraySize(nvar), nvar->constructor);
-
     if(nvar->bits)
         vmvar->value_bits = *this->interpret(nvar->bits)->value_ref<int64_t>();
 
@@ -606,11 +604,17 @@ void VM::allocVariable(const VMValuePtr& vmvar, NVariable *nvar)
     if(nvar->is_local)
         vmvar->value_flags |= VMValueFlags::Local;
 
+    if(vmvar->is_template())
+        vmvar->value_offset = this->currentOffset();
+
     if(vmvar->value_fgcolor == ColorInvalid)
         vmvar->value_fgcolor= this->currentFgColor();
 
     if(vmvar->value_bgcolor == ColorInvalid)
         vmvar->value_bgcolor= this->currentBgColor();
+
+    this->applyCustomVariables(vmvar, nvar);
+    this->allocType(vmvar, nvar->type, this->arraySize(nvar), nvar->constructor);
 
     if(!nvar->is_const && !nvar->is_local)
     {

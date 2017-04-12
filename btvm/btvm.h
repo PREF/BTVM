@@ -24,11 +24,12 @@ class BTVM: public VM
         virtual void print(const std::string& s);
         virtual void readValue(const VMValuePtr &vmvar, uint64_t size, bool seek);
         virtual void entryCreated(const BTEntryPtr& btentry);
+        virtual uint64_t currentOffset() const;
         virtual uint32_t currentFgColor() const;
         virtual uint32_t currentBgColor() const;
 
     private:
-        BTEntryPtr createEntry(const VMValuePtr& vmvalue, const BTEntryPtr &btparent, uint64_t &offset);
+        BTEntryPtr createEntry(const VMValuePtr& vmvalue, const BTEntryPtr &btparent);
         VMValuePtr readScalar(NCall* ncall, uint64_t bits, bool issigned);
         void initTypes();
         void initFunctions();

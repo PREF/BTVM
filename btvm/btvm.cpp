@@ -57,11 +57,8 @@ BTEntryList BTVM::createTemplate()
 
     if(this->state == VMState::NoState)
     {
-
-        uint64_t offset = 0;
-
         for(auto it = this->allocations.begin(); it != this->allocations.end(); it++)
-            btfmt.push_back(this->createEntry(*it, NULL, offset));
+            btfmt.push_back(this->createEntry(*it, NULL));
     }
     else
         this->allocations.clear();
@@ -91,6 +88,11 @@ void BTVM::entryCreated(const BTEntryPtr &btentry)
     VMUnused(btentry);
 }
 
+uint64_t BTVM::currentOffset() const
+{
+    return this->_btvmio->offset();
+}
+
 uint32_t BTVM::color(const string &color) const
 {
     auto it = this->_colors.find(color);
@@ -112,19 +114,17 @@ uint32_t BTVM::currentBgColor() const
     return this->_bgcolor;
 }
 
-BTEntryPtr BTVM::createEntry(const VMValuePtr &vmvalue, const BTEntryPtr& btparent, uint64_t& offset)
+BTEntryPtr BTVM::createEntry(const VMValuePtr &vmvalue, const BTEntryPtr& btparent)
 {
     BTEntryPtr btentry = std::make_shared<BTEntry>(vmvalue, this->_btvmio->endianness());
-    btentry->location = BTLocation(offset, this->sizeOf(vmvalue));
+    btentry->location = BTLocation(vmvalue->value_offset, this->sizeOf(vmvalue));
     btentry->parent = btparent;
 
     if(vmvalue->is_array() || node_is(vmvalue->value_typedef, NStruct))
     {
         for(auto it = vmvalue->m_value.begin(); it != vmvalue->m_value.end(); it++)
-            btentry->children.push_back(this->createEntry(*it, btentry, offset));
+            btentry->children.push_back(this->createEntry(*it, btentry));
     }
-    else
-        offset += this->sizeOf(vmvalue);
 
     this->entryCreated(btentry);
     return btentry;

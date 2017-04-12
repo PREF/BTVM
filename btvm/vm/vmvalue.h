@@ -129,6 +129,7 @@ struct VMValue
     uint32_t 			 value_bgcolor;
     uint32_t 			 value_fgcolor;
     int64_t              value_bits;
+    uint64_t 			 value_offset;
 
     VMValueMembers       m_value;
     VMString             s_value;
