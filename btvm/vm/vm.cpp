@@ -74,7 +74,7 @@ VMValuePtr VM::interpret(const NodeList &nodelist)
     {
         res = this->interpret(*it);
 
-        if((this->state == VMState::Error) || (this->state == VMState::Break))
+        if((this->state == VMState::Error) || (this->state == VMState::Continue) || (this->state == VMState::Break))
             return VMValuePtr();
         if(this->state == VMState::Return)
             break;
@@ -143,7 +143,6 @@ VMValuePtr VM::interpret(NWhile *nwhile)
 VMValuePtr VM::interpret(NFor *nfor)
 {
     VMValuePtr vmvalue;
-
     this->interpret(nfor->counter);
 
     while(*this->interpret(nfor->condition))
@@ -152,7 +151,6 @@ VMValuePtr VM::interpret(NFor *nfor)
 
         vmvalue = this->interpret(nfor->true_block);
         this->interpret(nfor->update);
-
         int vms = VMFunctions::state_check(&this->state);
 
         if(vms == VMState::Continue)
